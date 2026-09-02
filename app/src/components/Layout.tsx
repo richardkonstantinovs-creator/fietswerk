@@ -18,23 +18,31 @@ export function usePrinterStatus() {
 const CHIP = 'inline-flex items-center gap-2 px-3 py-1 rounded-xl border-2 font-semibold text-xs'
 const CHIP_OK = 'bg-[#E3F0E7] border-ok text-[#0B4A22]'
 
-/** Sectie 9.7 — grote, permanente printerindicator met één knop. Geen jargon. */
+/**
+ * Sectie 9.7 — grote, permanente printerindicator met één knop. Geen jargon.
+ *
+ * Eén uitzondering: een browser zonder bluetooth (Safari op de iPhone) kan
+ * nooit printen. Een rode plaat die de monteur de hele dag niet kan wegwerken
+ * is geen indicator meer maar behang, en hij nam boven elk scherm twee regels.
+ * Op zo'n toestel staat de uitleg in het menu "Meer".
+ */
 function PrinterBadge() {
   const t = useT()
   const { status } = usePrinterStatus()
   useDbVersion()
   const waiting = db.pendingPrintJobs().length
 
+  if (status === 'unsupported') return null
+
   const ready = status === 'ready' || status === 'printing'
   return (
     <>
       <span className={[CHIP, ready ? CHIP_OK : 'bg-[#FBEAE9] border-danger text-[#7A1610]'].join(' ')}>
         <span aria-hidden="true">{ready ? '●' : '○'}</span>
-        {status === 'unsupported' ? t('printer.unsupported')
-          : status === 'connecting' ? t('printer.connecting')
+        {status === 'connecting' ? t('printer.connecting')
           : ready ? t('printer.ready') : t('printer.disconnected')}
       </span>
-      {!ready && status !== 'unsupported' && (
+      {!ready && (
         <Button variant="secondary" className="text-sm px-4" onClick={() => { void printer.connect() }}>
           {t('printer.connect')}
         </Button>
@@ -44,6 +52,14 @@ function PrinterBadge() {
       )}
     </>
   )
+}
+
+/** De uitleg over de printer, alleen daar waar hij niet in de weg staat. */
+function PrinterNote() {
+  const t = useT()
+  const { status } = usePrinterStatus()
+  if (status !== 'unsupported') return null
+  return <p className="text-sm text-muted">{t('printer.unsupported')}</p>
 }
 
 /**
@@ -370,6 +386,7 @@ function MeerSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="px-4 pb-6 pt-2 flex flex-col gap-4 border-t-2 border-shell">
+          <PrinterNote />
           <LanguageSwitch />
           <UserBadge withLogout />
         </div>
