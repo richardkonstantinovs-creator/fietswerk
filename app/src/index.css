@@ -36,10 +36,24 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 /* Focus altijd zichtbaar en dik genoeg voor oudere ogen. */
 :focus-visible { outline: 4px solid #0B4F9E; outline-offset: 2px; }
 
+/* De onderbalk op de telefoon is vast en dekt de onderkant af. Alles wat
+   onderaan hoort — de hoofdknop van een scherm en het einde van de pagina —
+   rekent met deze hoogte, zodat er nooit iets onder de balk verdwijnt. */
+:root { --tabbar: 0px; }
+@media (max-width: 639px) {
+  /* Alleen de winkelschil heeft een onderbalk. Een gescand label (/W/<code>)
+     staat daarbuiten en houdt zijn knop gewoon onderaan het scherm. */
+  .has-tabbar { --tabbar: calc(78px + env(safe-area-inset-bottom, 0px)); }
+}
+.pb-app { padding-bottom: calc(var(--tabbar) + 1rem); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.bottom-app { bottom: var(--tabbar); }
+
 /* Documenten voor de klant (factuur, inkoopverklaring) gaan naar papier of PDF.
    Alles wat alleen op het scherm hoort, verdwijnt bij het afdrukken. */
 @media print {
   .no-print { display: none !important; }
   body { background: #FFFFFF; font-size: 12pt; }
+  .has-tabbar { --tabbar: 0px; }
   .print-sheet { border: 0 !important; padding: 0 !important; max-width: none !important; }
 }

@@ -354,8 +354,32 @@ export default function Werkbon() {
         <OrderPart woid={wo.id} onDone={() => setOrdering(false)} />
       )}
 
-      <PrimaryBar>
-        {primary && (
+      {/* De zijstappen staan in de bladzijde, niet in de vaste balk onderaan:
+          anders staat er op een telefoon vier knopjes hoog scherm dicht en
+          blijft er niets van de bon over (sectie 2.2 — één hoofdactie). */}
+      {others.length > 0 && (
+        <>
+          <SectionTitle>{t('action.more')}</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {others.map((tr) => (
+              <Button
+                key={tr.to + tr.labelKey}
+                variant={tr.confirmKey ? 'danger' : 'secondary'}
+                full
+                onClick={() => {
+                  if (tr.confirmKey) setConfirming({ to: tr.to, key: tr.confirmKey })
+                  else apply(tr.to)
+                }}
+              >
+                {t(tr.labelKey)}
+              </Button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {primary && (
+        <PrimaryBar>
           <Button variant="primary" full onClick={() => {
             const tr = primary
             if (tr.confirmKey) setConfirming({ to: tr.to, key: tr.confirmKey })
@@ -363,21 +387,8 @@ export default function Werkbon() {
           }}>
             {t(primary.labelKey)}
           </Button>
-        )}
-        {others.map((tr) => (
-          <Button
-            key={tr.to + tr.labelKey}
-            variant={tr.confirmKey ? 'danger' : 'secondary'}
-            full
-            onClick={() => {
-              if (tr.confirmKey) setConfirming({ to: tr.to, key: tr.confirmKey })
-              else apply(tr.to)
-            }}
-          >
-            {t(tr.labelKey)}
-          </Button>
-        ))}
-      </PrimaryBar>
+        </PrimaryBar>
+      )}
 
       {confirming && (
         <Confirm

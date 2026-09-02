@@ -42,7 +42,7 @@ export function Button({ variant = 'secondary', full, className = '', ...rest }:
  */
 export function PrimaryBar({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-shell border-t-2 border-line px-4 py-4 mt-8 -mx-4">
+    <div className="sticky bottom-app left-0 right-0 bg-shell border-t-2 border-line px-4 py-3 mt-8 -mx-4">
       <div className="mx-auto max-w-3xl flex flex-col gap-3">{children}</div>
     </div>
   )

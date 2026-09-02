@@ -36,7 +36,7 @@ export default function ScanActie() {
   if (!staff) {
     const s = db.settings()
     return (
-      <div className="max-w-xl mx-auto">
+      <main className="mx-auto w-full max-w-xl px-4 pb-4">
         <h1 className="text-3xl font-semibold mt-8 mb-4">{t('scan.anonymous_title')}</h1>
         <Card>
           <p className="text-lg">{t('scan.anonymous_body', { shop: s.shop_name, phone: phoneDisplay(s.phone) })}</p>
@@ -47,20 +47,20 @@ export default function ScanActie() {
             {t('scan.staff_mode')}
           </Button>
         </div>
-      </div>
+      </main>
     )
   }
 
   if (!wo) {
     return (
-      <div>
+      <main className="mx-auto w-full max-w-3xl px-4 pb-4">
         <BackLink to="/" labelKey="back.werkplaats" />
         <h1 className="text-3xl font-semibold mb-4">{formatTagCode(clean)}</h1>
         <Notice tone="warn">{t('scan.not_found', { code: formatTagCode(clean) })}</Notice>
         <div className="mt-6">
           <Button variant="primary" full onClick={() => navigate('/')}>{t('back.werkplaats')}</Button>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -69,7 +69,7 @@ export default function ScanActie() {
   const primary = isOpen(wo.status) ? primaryTransition(wo.status) : null
 
   return (
-    <div>
+    <main className="mx-auto w-full max-w-3xl px-4 pb-4">
       <BackLink to="/" labelKey="back.werkplaats" />
       <h1 className="text-5xl font-semibold tracking-widest mb-3">{formatTagCode(clean)}</h1>
       <p className="mb-4"><StatusPlate status={wo.status} big /></p>
@@ -102,6 +102,6 @@ export default function ScanActie() {
         )}
         <Button full onClick={() => navigate(`/werkbon/${wo.id}`)}>{t('werkbon.title')}</Button>
       </PrimaryBar>
-    </div>
+    </main>
   )
 }

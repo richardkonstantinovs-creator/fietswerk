@@ -92,18 +92,6 @@ export default function Overzicht() {
         </Big>
       </div>
 
-      <SectionTitle>{t('nav.meer')}</SectionTitle>
-      <div className="grid gap-3">
-        {([
-          ['/bestellingen', 'bestellingen.title'],
-          ['/abonnementen', 'abonnementen.title'],
-          ['/accus', 'accus.title'],
-          ['/rapporten', 'rapporten.title'],
-        ] as const).map(([to, key]) => (
-          <Button key={to} full onClick={() => navigate(to)}>{t(key)}</Button>
-        ))}
-      </div>
-
       {uncollected.length > 0 && (
         <>
           <SectionTitle>{t('overzicht.uncollected')}</SectionTitle>

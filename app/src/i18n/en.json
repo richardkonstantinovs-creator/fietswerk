@@ -5,6 +5,8 @@
   "nav.klanten": "Customers (klanten)",
   "nav.overzicht": "Overview (overzicht)",
   "nav.scan": "Scan a label",
+  "nav.scan_short": "Scan",
+  "nav.menu": "Main menu",
 
   "back.werkplaats": "← Back to workshop",
   "back.klanten": "← Back to customers",
