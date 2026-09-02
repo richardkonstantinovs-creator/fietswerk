@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fietswerk — printer opsporen</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif; font-size: 20px; line-height: 1.4;
+    color: #111; background: #fff; margin: 0; padding: 24px; max-width: 60rem;
+  }
+  h1 { font-size: 32px; }
+  h2 { font-size: 26px; margin-top: 32px; }
+  button {
+    min-height: 56px; min-width: 56px; font-size: 20px; font-weight: 600;
+    padding: 12px 20px; border: 2px solid #111; border-radius: 12px;
+    background: #0B4F9E; color: #fff; cursor: pointer; margin: 0 12px 12px 0;
+  }
+  button.secondary { background: #fff; color: #111; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  pre {
+    background: #F2F2F2; border: 2px solid #767676; border-radius: 12px;
+    padding: 16px; font-size: 16px; overflow-x: auto; white-space: pre-wrap;
+  }
+  ol li { margin-bottom: 8px; }
+  .warn { border: 2px solid #B3261E; background: #FBEAE9; color: #7A1610;
+          padding: 16px; border-radius: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Printer opsporen</h1>
+
+<p>Dit hoort bij sectie 9.3 van de specificatie: <strong>eerst uitzoeken tot welke
+familie dit exemplaar behoort, dan pas de driver bouwen.</strong> Blind implementeren
+op andermans protocol kost een avond.</p>
+
+<div class="warn" id="support">Bezig met controleren of deze browser Web Bluetooth heeft…</div>
+
+<h2>Stappen</h2>
+<ol>
+  <li>Zet de printer aan en leg hem binnen een meter van dit apparaat.</li>
+  <li>Druk op <em>Printer zoeken</em> en kies het apparaat in de lijst van de browser.</li>
+  <li>Bekijk hieronder alle services en characteristics.</li>
+  <li>Druk op <em>Papier doorvoeren</em>. Gaat het papier bewegen, dan is de
+      cat-printer-familie bevestigd en kan de driver gebouwd worden.</li>
+  <li>Is er geen service <code>ae30</code>? Kopieer de dump en stop hier.</li>
+</ol>
+
+<p>
+  <button id="scan">Printer zoeken</button>
+  <button id="scanAll" class="secondary">Alles zoeken (geen filter)</button>
+  <button id="feed" class="secondary" disabled>Papier doorvoeren (30 stappen)</button>
+  <button id="copy" class="secondary">Dump kopiëren</button>
+</p>
+
+<h2>Dump</h2>
+<pre id="log">Nog niets.</pre>
+
+<script>
+const SERVICE = '0000ae30-0000-1000-8000-00805f9b34fb'
+const WRITE   = '0000ae01-0000-1000-8000-00805f9b34fb'
+const NOTIFY  = '0000ae02-0000-1000-8000-00805f9b34fb'
+// Andere UUID's die in deze familie voorkomen; hier alleen om ze te mogen lezen.
+const EXTRA = [
+  '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+]
+
+const logEl = document.getElementById('log')
+let lines = []
+function log(text) {
+  lines.push(text)
+  logEl.textContent = lines.join('\n')
+}
+
+const supportEl = document.getElementById('support')
+if (!('bluetooth' in navigator)) {
+  supportEl.textContent = 'Deze browser kan geen Bluetooth. Gebruik Chrome of Edge op Windows, '
+    + 'macOS of Android. Firefox en Safari doen dit niet.'
+} else {
+  supportEl.className = ''
+  supportEl.textContent = 'Web Bluetooth is beschikbaar in deze browser.'
+}
+
+let writeCharacteristic = null
+
+async function probe(filterOnService) {
+  lines = []
+  try {
+    const options = filterOnService
+      ? { filters: [{ services: [SERVICE] }], optionalServices: [SERVICE, ...EXTRA] }
+      : { acceptAllDevices: true, optionalServices: [SERVICE, ...EXTRA] }
+    const device = await navigator.bluetooth.requestDevice(options)
+    log('Apparaat: ' + (device.name || '(geen naam)'))
+    log('Id: ' + device.id)
+
+    const server = await device.gatt.connect()
+    log('Verbonden.')
+
+    const services = await server.getPrimaryServices()
+    log('Aantal services: ' + services.length)
+    for (const service of services) {
+      log('')
+      log('Service ' + service.uuid)
+      let characteristics = []
+      try { characteristics = await service.getCharacteristics() } catch (e) { log('  (kan characteristics niet lezen: ' + e + ')') }
+      for (const c of characteristics) {
+        const props = Object.entries(c.properties)
+          .filter(([, on]) => on).map(([name]) => name).join(', ')
+        log('  Characteristic ' + c.uuid + '  [' + props + ']')
+        if (c.uuid === WRITE) writeCharacteristic = c
+        if (c.uuid === NOTIFY && c.properties.notify) {
+          try {
+            await c.startNotifications()
+            c.addEventListener('characteristicvaluechanged', (ev) => {
+              const bytes = new Uint8Array(ev.target.value.buffer)
+              log('  Notify: ' + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join(' '))
+            })
+            log('  (meldingen aan)')
+          } catch (e) { log('  (meldingen mislukt: ' + e + ')') }
+        }
+      }
+    }
+
+    const hasAe30 = services.some((s) => s.uuid === SERVICE)
+    log('')
+    log(hasAe30
+      ? 'Service ae30 gevonden: dit lijkt op de cat-printer-familie. Test nu de papierdoorvoer.'
+      : 'GEEN service ae30. Het protocol uit sectie 9.2 klopt hier waarschijnlijk niet. '
+        + 'Kopieer deze dump en stop met de implementatie.')
+    document.getElementById('feed').disabled = writeCharacteristic == null
+  } catch (e) {
+    log('Fout: ' + e)
+  }
+}
+
+// 0x51 0x78 <cmd> 0x00 <len_lo> <len_hi> <payload> <crc8> 0xFF
+function crc8(data) {
+  let crc = 0
+  for (const byte of data) {
+    crc ^= byte
+    for (let i = 0; i < 8; i++) crc = crc & 0x80 ? ((crc << 1) ^ 0x07) & 0xff : (crc << 1) & 0xff
+  }
+  return crc
+}
+function packet(cmd, payload) {
+  const out = new Uint8Array(8 + payload.length)
+  out.set([0x51, 0x78, cmd, 0x00, payload.length & 0xff, (payload.length >> 8) & 0xff])
+  out.set(payload, 6)
+  out[6 + payload.length] = crc8(payload)
+  out[7 + payload.length] = 0xff
+  return out
+}
+
+document.getElementById('scan').onclick = () => probe(true)
+document.getElementById('scanAll').onclick = () => probe(false)
+document.getElementById('feed').onclick = async () => {
+  if (!writeCharacteristic) return
+  try {
+    const bytes = packet(0xa1, [30, 0]) // FeedPaper, 30 stappen
+    await writeCharacteristic.writeValueWithoutResponse(bytes)
+    log('FeedPaper verstuurd. Bewoog het papier? Dan is de familie bevestigd.')
+  } catch (e) {
+    log('Papierdoorvoer mislukt: ' + e)
+  }
+}
+document.getElementById('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(lines.join('\n')); log('(dump gekopieerd)') }
+  catch { log('(kopiëren niet toegestaan, selecteer de tekst met de hand)') }
+}
+</script>
+</body>
+</html>

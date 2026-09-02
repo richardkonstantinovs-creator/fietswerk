@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Blijft lokaal: bevat de strategie en de afspraken met de winkel.
+FIETSWERK SPEC.md

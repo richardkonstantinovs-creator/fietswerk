@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sectie 2.2 — alleen licht thema, hoog contrast, geen dunne letters. */
+:root {
+  color-scheme: light;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  font-synthesis: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: #F2F2F2;
+  color: #111111;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+/* Geen font-weight 300 in de hele app. */
+* { font-weight: inherit; }
+h1, h2, h3, th, strong, b { font-weight: 600; }
+
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: #111111; }
+
+/* Sectie 2.2 — animaties alleen eenvoudig en kort. */
+@media (prefers-reduced-motion: no-preference) {
+  .fade-in { animation: fade-in 150ms ease-out; }
+}
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* Focus altijd zichtbaar en dik genoeg voor oudere ogen. */
+:focus-visible { outline: 4px solid #0B4F9E; outline-offset: 2px; }
+
+/* Documenten voor de klant (factuur, inkoopverklaring) gaan naar papier of PDF.
+   Alles wat alleen op het scherm hoort, verdwijnt bij het afdrukken. */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #FFFFFF; font-size: 12pt; }
+  .print-sheet { border: 0 !important; padding: 0 !important; max-width: none !important; }
+}
