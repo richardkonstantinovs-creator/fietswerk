@@ -151,38 +151,25 @@ const TABS = [
 ]
 
 /**
- * Zijbalk op tablet en pc (sectie 2.2: twee niveaus, alles zichtbaar). Alles
- * staat onder elkaar aan de linkerkant, in drie groepjes met een kopje erboven
- * dat zegt waar het groepje over gaat. Zo hoeft niemand de hele lijst te lezen
- * om één regel te vinden, en groeit het menu niet meer mee met de kop van het
- * scherm.
+ * Zijbalk op tablet en pc (sectie 2.2: twee niveaus, alles zichtbaar). Elke
+ * bestemming staat onder elkaar aan de linkerkant, altijd allemaal in beeld.
+ *
+ * Geen kopjes boven groepjes en geen naam van de winkel als knop: elke regel
+ * die geen bestemming is, kost een regel die dat wel is, en dan moet er in het
+ * menu gescrold worden. De volgorde doet het werk van de kopjes: eerst de twee
+ * schermen van de werkdag, dan de winkel, dan de cijfers.
  */
-const ZIJBALK: { key: string; items: { to: string; key: string; icon: () => ReactNode }[] }[] = [
-  {
-    key: 'nav.groep.werk',
-    items: [
-      { to: '/', key: 'nav.werkplaats', icon: IconWerkplaats },
-      { to: '/scan', key: 'nav.scan_short', icon: IconScan },
-    ],
-  },
-  {
-    key: 'nav.groep.winkel',
-    items: [
-      { to: '/onderdelen', key: 'nav.onderdelen', icon: IconOnderdelen },
-      { to: '/bestellingen', key: 'bestellingen.title', icon: IconBestellingen },
-      { to: '/occasions', key: 'nav.occasions', icon: IconOccasions },
-      { to: '/accus', key: 'accus.title', icon: IconAccus },
-      { to: '/klanten', key: 'nav.klanten', icon: IconKlanten },
-      { to: '/abonnementen', key: 'nav.abonnementen', icon: IconAbonnementen },
-    ],
-  },
-  {
-    key: 'nav.groep.cijfers',
-    items: [
-      { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
-      { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
-    ],
-  },
+const ZIJBALK: { to: string; key: string; icon: () => ReactNode }[] = [
+  { to: '/', key: 'nav.werkplaats', icon: IconWerkplaats },
+  { to: '/scan', key: 'nav.scan_short', icon: IconScan },
+  { to: '/onderdelen', key: 'nav.onderdelen', icon: IconOnderdelen },
+  { to: '/bestellingen', key: 'bestellingen.title', icon: IconBestellingen },
+  { to: '/occasions', key: 'nav.occasions', icon: IconOccasions },
+  { to: '/accus', key: 'accus.title', icon: IconAccus },
+  { to: '/klanten', key: 'nav.klanten', icon: IconKlanten },
+  { to: '/abonnementen', key: 'nav.abonnementen', icon: IconAbonnementen },
+  { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
+  { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
 ]
 
 /** Alles wat niet in de onderbalk past. Eén lijst, één plek om aan te passen. */
@@ -374,58 +361,42 @@ const ZIJ_LINK =
 
 /**
  * De zijbalk staat vast aan de linkerkant en blijft staan waar hij staat, ook
- * als het scherm eronder doorscrollt. Zo staat de plek waar je heen moet altijd
- * op dezelfde hoogte, en houdt de kop van het scherm één regel over voor de
- * printer en het opslaan. Alleen op tablet en pc: op de telefoon is er geen
- * ruimte naast het scherm en blijft de onderbalk staan.
+ * als het scherm eronder doorscrollt. Alle tien de bestemmingen passen erin
+ * zonder te scrollen: tien regels van 56 px met 12 px ertussen (sectie 2.2) is
+ * precies wat er in staat, dus er hoort niets anders bij. Wie er werkt en de
+ * instellingen staan daarom in de kop.
+ *
+ * Alleen op tablet en pc: op de telefoon is er geen ruimte naast het scherm en
+ * blijft de onderbalk staan.
  */
-function Sidebar({ onInstellingen }: { onInstellingen: () => void }) {
+function Sidebar() {
   const t = useT()
   const location = useLocation()
   useDbVersion()
   return (
-    <aside className="no-print hidden sm:flex fixed inset-y-0 left-0 z-40 w-72 flex-col bg-white border-r-2 border-ink">
-      <Link
-        to="/"
-        className="flex items-center min-h-touch px-4 py-2 border-b-2 border-ink text-xl font-semibold no-underline text-ink truncate"
-      >
-        {db.settings().shop_name}
-      </Link>
-
-      <nav aria-label={t('nav.menu')} className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-4">
-        {ZIJBALK.map((groep) => (
-          <div key={groep.key} className="flex flex-col gap-3">
-            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              {t(groep.key)}
-            </h2>
-            {groep.items.map((item) => {
-              const active = isActive(location.pathname, item.to)
-              const Icon = item.icon
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  aria-current={active ? 'page' : undefined}
-                  className={[
-                    ZIJ_LINK,
-                    active
-                      ? 'bg-ink text-white border-ink'
-                      : 'bg-white text-ink border-white hover:bg-shell',
-                  ].join(' ')}
-                >
-                  <span className="shrink-0"><Icon /></span>
-                  <span className="min-w-0">{t(item.key)}</span>
-                </Link>
-              )
-            })}
-          </div>
-        ))}
+    <aside className="no-print hidden sm:flex fixed inset-y-0 left-0 z-40 w-80 flex-col bg-white border-r-2 border-ink">
+      <nav aria-label={t('nav.menu')} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3">
+        {ZIJBALK.map((item) => {
+          const active = isActive(location.pathname, item.to)
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              aria-current={active ? 'page' : undefined}
+              className={[
+                ZIJ_LINK,
+                active
+                  ? 'bg-ink text-white border-ink'
+                  : 'bg-white text-ink border-white hover:bg-shell',
+              ].join(' ')}
+            >
+              <span className="shrink-0"><Icon /></span>
+              <span className="min-w-0">{t(item.key)}</span>
+            </Link>
+          )
+        })}
       </nav>
-
-      <div className="border-t-2 border-ink px-3 py-2 flex items-center gap-3">
-        <span className="min-w-0 flex-1"><UserBadge compact /></span>
-        <Button className="text-sm px-4 shrink-0" onClick={onInstellingen}>{t('nav.instellingen')}</Button>
-      </div>
     </aside>
   )
 }
@@ -496,6 +467,7 @@ function MeerSheet({ onClose, metNav }: { onClose: () => void; metNav: boolean }
 }
 
 export function Layout({ children }: { children: ReactNode }) {
+  const t = useT()
   const navigate = useNavigate()
   const [sheet, setSheet] = useState<'meer' | 'instellingen' | null>(null)
 
@@ -513,16 +485,26 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="has-tabbar min-h-full flex flex-col">
       {/* Tablet en pc: het menu staat links en blijft staan. */}
-      <Sidebar onInstellingen={() => { setSheet('instellingen') }} />
+      <Sidebar />
 
-      <div className="flex-1 flex flex-col sm:pl-72">
+      <div className="flex-1 flex flex-col sm:pl-80">
         {/* De kop blijft staan: printer en opslag moeten altijd zichtbaar zijn
-            (sectie 9.7, 8.8). Meer staat er niet in; wie er werkt en de taal
-            staan links onderin de zijbalk, op de telefoon achter "Meer". */}
+            (sectie 9.7, 8.8). Rechts staat wie er werkt, met de knop naar de
+            taal en het afmelden ernaast; op de telefoon staat dat achter
+            "Meer". De zijbalk houdt zo alle ruimte voor bestemmingen. */}
         <header className="no-print sticky top-0 z-30 bg-white border-b-2 border-ink">
           <div className="px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
             <PrinterBadge />
             <SyncBadge />
+            <div className="hidden sm:flex items-center gap-3 ml-auto">
+              <span className="min-w-0"><UserBadge /></span>
+              <Button
+                className="text-sm px-4 shrink-0"
+                onClick={() => { setSheet('instellingen') }}
+              >
+                {t('nav.instellingen')}
+              </Button>
+            </div>
           </div>
         </header>
 
