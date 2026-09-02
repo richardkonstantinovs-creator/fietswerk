@@ -107,18 +107,27 @@ function LanguageSwitch() {
 }
 
 /**
- * In de kop staat alleen wie er werkt; afmelden en de taal gebeuren een paar
- * keer per jaar en staan daarom achter "Meer". Zo houdt de kop één regel over
- * voor de dingen die de hele dag meekijken: de printer en het opslaan.
+ * Wie er werkt staat onderin de zijbalk, op de telefoon achter "Meer".
+ * Afmelden en de taal gebeuren een paar keer per jaar en staan daarom achter
+ * "Instellingen"; zo houdt de kop van het scherm één regel over voor de dingen
+ * die de hele dag meekijken: de printer en het opslaan.
  */
-function UserBadge({ withLogout }: { withLogout?: boolean }) {
+function UserBadge({ withLogout, compact }: { withLogout?: boolean; compact?: boolean }) {
   const t = useT()
   useDbVersion()
   const user = db.currentUser()
   if (!user) return null
+  if (compact) {
+    return (
+      <span className="block min-w-0">
+        <span className="block text-sm font-semibold truncate">{user.name}</span>
+        <span className="block text-xs text-muted truncate">{t(`role.${user.role}`)}</span>
+      </span>
+    )
+  }
   return (
-    <span className={withLogout ? 'flex flex-col gap-3' : 'block'}>
-      <span className="text-sm font-semibold">
+    <span className={withLogout ? 'flex flex-col gap-3' : 'block min-w-0'}>
+      <span className={withLogout ? 'text-sm font-semibold' : 'block text-sm font-semibold truncate'}>
         {t('login.logged_in_as', { name: `${user.name} (${t(`role.${user.role}`)})` })}
       </span>
       {withLogout && (
@@ -133,7 +142,7 @@ function UserBadge({ withLogout }: { withLogout?: boolean }) {
 /* --------------------------------------------------------------------------
  * Navigatie. Op de telefoon staan alleen de twee schermen die een monteur de
  * hele dag gebruikt onderaan binnen duimbereik; de rest zit achter "Meer".
- * Op tablet en pc is er ruimte genoeg en staat alles gewoon in de kop.
+ * Op tablet en pc is er ruimte naast het scherm en staat alles in de zijbalk.
  * ----------------------------------------------------------------------- */
 
 const TABS = [
@@ -141,14 +150,39 @@ const TABS = [
   { to: '/scan', key: 'nav.scan_short', icon: IconScan },
 ]
 
-/** Kop van de app op tablet en pc (sectie 2.2: twee niveaus, alles zichtbaar). */
-const NAV = [
-  { to: '/', key: 'nav.werkplaats' },
-  { to: '/onderdelen', key: 'nav.onderdelen' },
-  { to: '/occasions', key: 'nav.occasions' },
-  { to: '/klanten', key: 'nav.klanten' },
-  { to: '/overzicht', key: 'nav.overzicht' },
-  { to: '/scan', key: 'nav.scan_short' },
+/**
+ * Zijbalk op tablet en pc (sectie 2.2: twee niveaus, alles zichtbaar). Alles
+ * staat onder elkaar aan de linkerkant, in drie groepjes met een kopje erboven
+ * dat zegt waar het groepje over gaat. Zo hoeft niemand de hele lijst te lezen
+ * om één regel te vinden, en groeit het menu niet meer mee met de kop van het
+ * scherm.
+ */
+const ZIJBALK: { key: string; items: { to: string; key: string; icon: () => ReactNode }[] }[] = [
+  {
+    key: 'nav.groep.werk',
+    items: [
+      { to: '/', key: 'nav.werkplaats', icon: IconWerkplaats },
+      { to: '/scan', key: 'nav.scan_short', icon: IconScan },
+    ],
+  },
+  {
+    key: 'nav.groep.winkel',
+    items: [
+      { to: '/onderdelen', key: 'nav.onderdelen', icon: IconOnderdelen },
+      { to: '/bestellingen', key: 'bestellingen.title', icon: IconBestellingen },
+      { to: '/occasions', key: 'nav.occasions', icon: IconOccasions },
+      { to: '/accus', key: 'accus.title', icon: IconAccus },
+      { to: '/klanten', key: 'nav.klanten', icon: IconKlanten },
+      { to: '/abonnementen', key: 'nav.abonnementen', icon: IconAbonnementen },
+    ],
+  },
+  {
+    key: 'nav.groep.cijfers',
+    items: [
+      { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
+      { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
+    ],
+  },
 ]
 
 /** Alles wat niet in de onderbalk past. Eén lijst, één plek om aan te passen. */
@@ -185,7 +219,7 @@ function isActive(pathname: string, to: string): boolean {
 /* Pictogrammen staan nooit alleen: er hoort altijd tekst onder (sectie 2.2). */
 function IconWerkplaats() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+    <svg {...SVG}>
       <circle cx="4.5" cy="6" r="1.5" fill="currentColor" stroke="none" />
       <circle cx="4.5" cy="12" r="1.5" fill="currentColor" stroke="none" />
       <circle cx="4.5" cy="18" r="1.5" fill="currentColor" stroke="none" />
@@ -196,7 +230,7 @@ function IconWerkplaats() {
 
 function IconScan() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+    <svg {...SVG}>
       <path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3M3 12h18" />
     </svg>
   )
@@ -335,12 +369,73 @@ function TabBar({ onMeer, meerOpen }: { onMeer: () => void; meerOpen: boolean })
   )
 }
 
+const ZIJ_LINK =
+  'min-h-touch flex items-center gap-3 px-3 py-2 rounded-xl border-2 font-semibold text-sm leading-tight no-underline'
+
+/**
+ * De zijbalk staat vast aan de linkerkant en blijft staan waar hij staat, ook
+ * als het scherm eronder doorscrollt. Zo staat de plek waar je heen moet altijd
+ * op dezelfde hoogte, en houdt de kop van het scherm één regel over voor de
+ * printer en het opslaan. Alleen op tablet en pc: op de telefoon is er geen
+ * ruimte naast het scherm en blijft de onderbalk staan.
+ */
+function Sidebar({ onInstellingen }: { onInstellingen: () => void }) {
+  const t = useT()
+  const location = useLocation()
+  useDbVersion()
+  return (
+    <aside className="no-print hidden sm:flex fixed inset-y-0 left-0 z-40 w-72 flex-col bg-white border-r-2 border-ink">
+      <Link
+        to="/"
+        className="flex items-center min-h-touch px-4 py-2 border-b-2 border-ink text-xl font-semibold no-underline text-ink truncate"
+      >
+        {db.settings().shop_name}
+      </Link>
+
+      <nav aria-label={t('nav.menu')} className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-4">
+        {ZIJBALK.map((groep) => (
+          <div key={groep.key} className="flex flex-col gap-3">
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              {t(groep.key)}
+            </h2>
+            {groep.items.map((item) => {
+              const active = isActive(location.pathname, item.to)
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  aria-current={active ? 'page' : undefined}
+                  className={[
+                    ZIJ_LINK,
+                    active
+                      ? 'bg-ink text-white border-ink'
+                      : 'bg-white text-ink border-white hover:bg-shell',
+                  ].join(' ')}
+                >
+                  <span className="shrink-0"><Icon /></span>
+                  <span className="min-w-0">{t(item.key)}</span>
+                </Link>
+              )
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <div className="border-t-2 border-ink px-3 py-2 flex items-center gap-3">
+        <span className="min-w-0 flex-1"><UserBadge compact /></span>
+        <Button className="text-sm px-4 shrink-0" onClick={onInstellingen}>{t('nav.instellingen')}</Button>
+      </div>
+    </aside>
+  )
+}
+
 /**
  * "Meer" klapt van bovenaf open, over de kop heen en niet over de lijst waar
  * je mee bezig bent. Eén scherm met grote knoppen, geen uitklapmenu in een
  * uitklapmenu: dat zou een derde niveau navigatie zijn (sectie 2.2).
  */
-function MeerSheet({ onClose }: { onClose: () => void }) {
+function MeerSheet({ onClose, metNav }: { onClose: () => void; metNav: boolean }) {
   const t = useT()
   const navigate = useNavigate()
   const titleId = useId()
@@ -368,22 +463,27 @@ function MeerSheet({ onClose }: { onClose: () => void }) {
           <Button onClick={onClose}>{t('common.close')}</Button>
         </div>
 
-        <div className="p-4 grid gap-3 sm:grid-cols-2">
-          {MEER.map((item) => {
-            const Icon = item.icon
-            return (
-              <button
-                key={item.to}
-                type="button"
-                onClick={() => { onClose(); navigate(item.to) }}
-                className="min-h-touch min-w-0 flex items-center gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg text-left hover:bg-shell"
-              >
-                <span className="shrink-0"><Icon /></span>
-                <span className="min-w-0">{t(item.key)}</span>
-              </button>
-            )
-          })}
-        </div>
+        {/* De lijst met schermen hoort bij de onderbalk van de telefoon. Op
+            tablet en pc staat diezelfde lijst links in beeld; hem hier
+            herhalen zou alleen maar twee plekken maken om te zoeken. */}
+        {metNav && (
+          <div className="p-4 grid gap-3 sm:grid-cols-2">
+            {MEER.map((item) => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.to}
+                  type="button"
+                  onClick={() => { onClose(); navigate(item.to) }}
+                  className="min-h-touch min-w-0 flex items-center gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg text-left hover:bg-shell"
+                >
+                  <span className="shrink-0"><Icon /></span>
+                  <span className="min-w-0">{t(item.key)}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         <div className="px-4 pb-6 pt-2 flex flex-col gap-4 border-t-2 border-shell">
           <PrinterNote />
@@ -396,10 +496,8 @@ function MeerSheet({ onClose }: { onClose: () => void }) {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const t = useT()
-  const location = useLocation()
   const navigate = useNavigate()
-  const [meer, setMeer] = useState(false)
+  const [sheet, setSheet] = useState<'meer' | 'instellingen' | null>(null)
 
   // Balie-scanner werkt overal in de app (sectie 8.5).
   useHidScanner((code) => { navigate(`/W/${code}`) })
@@ -414,54 +512,27 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="has-tabbar min-h-full flex flex-col">
-      {/* De kop blijft staan: printer en opslag moeten altijd zichtbaar zijn
-          (sectie 9.7, 8.8). Op de telefoon is dat één smalle regel; naam,
-          taal en gebruiker staan daar achter de knop "Meer". */}
-      <header className="no-print sticky top-0 z-30 bg-white border-b-2 border-ink">
-        <div className="mx-auto max-w-3xl sm:max-w-5xl px-4 py-2 sm:py-3 flex flex-col gap-2 sm:gap-3">
-          <div className="flex items-center justify-between gap-3 gap-y-2 flex-wrap">
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              <Link to="/" className="hidden sm:block text-2xl font-semibold no-underline text-ink">
-                {db.settings().shop_name}
-              </Link>
-              <PrinterBadge />
-              <SyncBadge />
-            </div>
-            <div className="hidden sm:block"><UserBadge /></div>
+      {/* Tablet en pc: het menu staat links en blijft staan. */}
+      <Sidebar onInstellingen={() => { setSheet('instellingen') }} />
+
+      <div className="flex-1 flex flex-col sm:pl-72">
+        {/* De kop blijft staan: printer en opslag moeten altijd zichtbaar zijn
+            (sectie 9.7, 8.8). Meer staat er niet in; wie er werkt en de taal
+            staan links onderin de zijbalk, op de telefoon achter "Meer". */}
+        <header className="no-print sticky top-0 z-30 bg-white border-b-2 border-ink">
+          <div className="px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
+            <PrinterBadge />
+            <SyncBadge />
           </div>
-          <nav className="hidden sm:flex gap-3 flex-wrap">
-            {NAV.map((item) => {
-              const active = isActive(location.pathname, item.to)
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  aria-current={active ? 'page' : undefined}
-                  className={[
-                    'min-h-touch flex items-center px-4 rounded-xl border-2 font-semibold no-underline',
-                    active ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-ink',
-                  ].join(' ')}
-                >
-                  {t(item.key)}
-                </Link>
-              )
-            })}
-            <button
-              type="button"
-              onClick={() => { setMeer(true) }}
-              aria-expanded={meer}
-              className="min-h-touch flex items-center px-4 rounded-xl border-2 border-ink bg-white text-ink font-semibold"
-            >
-              {t('nav.meer')}
-            </button>
-          </nav>
-        </div>
-      </header>
+        </header>
 
-      <main className="flex-1 mx-auto w-full max-w-3xl px-4 pb-app">{children}</main>
+        <main className="flex-1 mx-auto w-full max-w-3xl px-4 pb-app">{children}</main>
+      </div>
 
-      <TabBar onMeer={() => { setMeer(true) }} meerOpen={meer} />
-      {meer && <MeerSheet onClose={() => { setMeer(false) }} />}
+      <TabBar onMeer={() => { setSheet('meer') }} meerOpen={sheet === 'meer'} />
+      {sheet !== null && (
+        <MeerSheet metNav={sheet === 'meer'} onClose={() => { setSheet(null) }} />
+      )}
     </div>
   )
 }

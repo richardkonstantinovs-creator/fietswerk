@@ -7,6 +7,11 @@
   "nav.scan": "Scan a label",
   "nav.scan_short": "Scan",
   "nav.menu": "Main menu",
+  "nav.groep.werk": "Work",
+  "nav.groep.winkel": "Shop",
+  "nav.groep.cijfers": "Numbers",
+  "nav.instellingen": "Settings",
+  "nav.abonnementen": "Contracts (abonnementen)",
 
   "back.werkplaats": "← Back to workshop",
   "back.klanten": "← Back to customers",
