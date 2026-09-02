@@ -40,13 +40,16 @@ export default function Onderdelen() {
       )}
 
       <div className="my-4 grid gap-3">
-        <Button
-          variant="primary"
-          full
-          onClick={() => setMade(db.buildOrderList().length)}
-        >
-          {t('onderdelen.make_order_list')}
-        </Button>
+        <div className="grid gap-3 grid-cols-2">
+          <Button
+            variant="primary"
+            full
+            onClick={() => setMade(db.buildOrderList().length)}
+          >
+            {t('onderdelen.make_order_list')}
+          </Button>
+          <Button full onClick={() => navigate('/bestellingen')}>{t('bestellingen.title')}</Button>
+        </div>
         {made != null && (
           <Notice tone={made > 0 ? 'ok' : 'warn'}>
             {made > 0
@@ -54,7 +57,6 @@ export default function Onderdelen() {
               : t('onderdelen.order_list_empty')}
           </Notice>
         )}
-        <Button full onClick={() => navigate('/bestellingen')}>{t('bestellingen.title')}</Button>
       </div>
 
       <p className="font-semibold my-4">{t('onderdelen.count', { count: list.length })}</p>

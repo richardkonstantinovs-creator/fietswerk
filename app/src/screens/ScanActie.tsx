@@ -86,8 +86,14 @@ export default function ScanActie() {
 
       {done && <div className="mt-4"><Notice tone="ok">{done}</Notice></div>}
 
+      {primary && (
+        <div className="mt-6">
+          <Button full onClick={() => navigate(`/werkbon/${wo.id}`)}>{t('werkbon.title')}</Button>
+        </div>
+      )}
+
       <PrimaryBar>
-        {primary && (
+        {primary ? (
           <Button
             variant="primary"
             full
@@ -99,8 +105,11 @@ export default function ScanActie() {
           >
             {t(primary.labelKey)}
           </Button>
+        ) : (
+          <Button variant="primary" full onClick={() => navigate(`/werkbon/${wo.id}`)}>
+            {t('werkbon.title')}
+          </Button>
         )}
-        <Button full onClick={() => navigate(`/werkbon/${wo.id}`)}>{t('werkbon.title')}</Button>
       </PrimaryBar>
     </main>
   )

@@ -20,7 +20,7 @@ export default function Bestelling() {
   if (!po) {
     return (
       <div>
-        <BackLink to="/bestellingen" labelKey="bestellingen.title" />
+        <BackLink to="/bestellingen" labelKey="back.bestellingen" />
         <Notice tone="danger">{t('common.no_results')}</Notice>
       </div>
     )
@@ -41,7 +41,7 @@ export default function Bestelling() {
 
   return (
     <div>
-      <BackLink to="/bestellingen" labelKey="bestellingen.title" />
+      <BackLink to="/bestellingen" labelKey="back.bestellingen" />
       <h1 className="text-3xl font-semibold mb-2">{po.number}</h1>
       <p className="text-2xl mb-4">{supplier?.name}</p>
 

@@ -25,6 +25,13 @@ body {
 * { font-weight: inherit; }
 h1, h2, h3, th, strong, b { font-weight: 600; }
 
+/* Het Nederlands maakt woorden als "Onderhoudsabonnementen". Op een telefoon
+   past dat niet op één regel; zonder deze regel loopt de kop het scherm uit en
+   schuift de hele bladzijde opzij. Afbreken met een streepje leest gewoon door;
+   document.documentElement.lang staat op nl of en, dus dat klopt per taal. */
+h1, h2, h3 { overflow-wrap: break-word; hyphens: auto; }
+button, a { overflow-wrap: break-word; hyphens: auto; }
+
 button, input, select, textarea { font-family: inherit; font-size: inherit; color: #111111; }
 
 /* Sectie 2.2 — animaties alleen eenvoudig en kort. */
@@ -32,6 +39,13 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   .fade-in { animation: fade-in 150ms ease-out; }
 }
 @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* Het menu komt van boven het scherm naar beneden, zodat te zien is waar het
+   vandaan komt. Kort en zonder veren, precies zoals sectie 2.2 voorschrijft. */
+@media (prefers-reduced-motion: no-preference) {
+  .slide-down { animation: slide-down 150ms ease-out; }
+}
+@keyframes slide-down { from { transform: translateY(-12px); opacity: 0 } to { transform: none; opacity: 1 } }
 
 /* Focus altijd zichtbaar en dik genoeg voor oudere ogen. */
 :focus-visible { outline: 4px solid #0B4F9E; outline-offset: 2px; }

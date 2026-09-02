@@ -46,7 +46,7 @@ export default function Accus() {
 
   return (
     <div>
-      <BackLink to="/overzicht" labelKey="nav.overzicht" />
+      <BackLink to="/overzicht" labelKey="back.overzicht" />
       <h1 className="text-3xl font-semibold mb-1">{t('accus.title')}</h1>
       <p className="text-muted mb-4">{t('accus.subtitle')}</p>
 

@@ -73,10 +73,7 @@ export default function Inkoop() {
       <div>
         <h1 className="text-3xl font-semibold mt-6 mb-4">{t('inkoop.saved')}</h1>
         <Notice tone="warn">{t('inkoop.saved_hold', { date: date(saved.sellable_from) })}</Notice>
-        <PrimaryBar>
-          <Button variant="primary" full onClick={() => navigate(`/occasion/${saved.id}`)}>
-            {t('common.open')}
-          </Button>
+        <div className="mt-6 grid gap-3">
           {db.needsInkoopverklaring(saved) && (
             <Button full onClick={() => navigate(`/inkoopverklaring/${saved.id}`)}>
               {t('occasions.open_inkoopverklaring')}
@@ -85,6 +82,12 @@ export default function Inkoop() {
           <Button variant="quiet" full onClick={() => navigate('/occasions')}>
             {t('occasions.title')}
           </Button>
+        </div>
+
+        <PrimaryBar>
+          <Button variant="primary" full onClick={() => navigate(`/occasion/${saved.id}`)}>
+            {t('common.open')}
+          </Button>
         </PrimaryBar>
       </div>
     )
@@ -92,7 +95,7 @@ export default function Inkoop() {
 
   return (
     <div>
-      <BackLink to="/occasions" labelKey="occasions.title" />
+      <BackLink to="/occasions" labelKey="back.occasions" />
       <h1 className="text-3xl font-semibold mb-4">{t('inkoop.title')}</h1>
       <Notice tone="warn">{t('inkoop.legal')}</Notice>
 
@@ -215,9 +218,12 @@ export default function Inkoop() {
 
       {error && <FieldError message={error} />}
 
+      <div className="mt-6">
+        <Button variant="quiet" full onClick={() => navigate('/occasions')}>{t('common.cancel')}</Button>
+      </div>
+
       <PrimaryBar>
         <Button variant="primary" full onClick={save}>{t('inkoop.save')}</Button>
-        <Button variant="quiet" full onClick={() => navigate('/occasions')}>{t('common.cancel')}</Button>
       </PrimaryBar>
     </div>
   )

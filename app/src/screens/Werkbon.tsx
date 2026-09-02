@@ -14,7 +14,7 @@ import {
 } from '../lib/format'
 import { useT } from '../i18n'
 import {
-  Button, Card, ChoiceButton, Confirm, Field, Notice, NumberInput,
+  Button, Card, ChoiceButton, Collapse, Confirm, Field, Notice, NumberInput,
   PrimaryBar, SectionTitle, TextArea, TextInput,
 } from '../components/ui'
 import { BackLink } from '../components/Layout'
@@ -41,6 +41,9 @@ export default function Werkbon() {
   const [diagnosis, setDiagnosis] = useState(wo?.diagnosis ?? '')
   const [rack, setRack] = useState(wo?.rack_location ?? '')
   const [contacted, setContacted] = useState(false)
+  // De regels staan er om gelezen te worden. Een rode knop onder elke regel
+  // maakt de bon twee keer zo lang en nodigt uit tot per ongeluk wissen.
+  const [editLines, setEditLines] = useState(false)
 
   if (!wo) {
     return (
@@ -147,13 +150,15 @@ export default function Werkbon() {
               </span>
               <span className="font-semibold whitespace-nowrap">{money(l.line_total_ex_vat_cents)}</span>
             </div>
-            <Button
-              className="mt-2 text-sm"
-              variant="danger"
-              onClick={() => db.removeLine(l.id)}
-            >
-              {t('werkbon.remove_line')}
-            </Button>
+            {editLines && (
+              <Button
+                className="mt-2 text-sm"
+                variant="danger"
+                onClick={() => db.removeLine(l.id)}
+              >
+                {t('werkbon.remove_line')}
+              </Button>
+            )}
           </div>
         ))}
         <div className="pt-4 mt-2 border-t-2 border-ink">
@@ -170,9 +175,18 @@ export default function Werkbon() {
       </Card>
 
       <div className="mt-4">
-        {adding
-          ? <AddLine woid={wo.id} onDone={() => setAdding(false)} />
-          : <Button full onClick={() => setAdding(true)}>{t('werkbon.add_line')}</Button>}
+        {adding ? (
+          <AddLine woid={wo.id} onDone={() => setAdding(false)} />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button full onClick={() => setAdding(true)}>{t('werkbon.add_line')}</Button>
+            {lines.length > 0 && (
+              <Button full onClick={() => setEditLines((v) => !v)}>
+                {editLines ? t('werkbon.edit_lines_done') : t('werkbon.edit_lines')}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <SectionTitle>{t('werkbon.diagnosis')}</SectionTitle>
@@ -200,30 +214,28 @@ export default function Werkbon() {
       </div>
 
       {(wo.left_behind.length > 0 || wo.key_numbers.length > 0) && (
-        <>
-          <SectionTitle>{t('werkbon.left_behind')}</SectionTitle>
+        <Collapse title={t('werkbon.left_behind')}>
           <Card>
             <p>{wo.left_behind.map((x) => t(`aanname.left.${x}`)).join(', ') || t('common.none')}</p>
             {wo.key_numbers.length > 0 && (
               <p className="mt-2">{t('aanname.step6.keys')}: <strong>{wo.key_numbers.join(', ')}</strong></p>
             )}
           </Card>
-        </>
+        </Collapse>
       )}
 
       {wo.photos.length > 0 && (
-        <>
-          <SectionTitle>{t('werkbon.photos')}</SectionTitle>
+        <Collapse title={t('werkbon.photos')} sub={t('werkbon.photos_count', { count: wo.photos.length })}>
           <div className="flex gap-3 flex-wrap">
             {wo.photos.map((p) => (
               <img key={p.id} src={p.data_url} alt="" className="w-32 h-32 object-cover rounded-xl border-2 border-line" />
             ))}
           </div>
-        </>
+        </Collapse>
       )}
 
-      <SectionTitle>{t('klant.contact')}</SectionTitle>
-      <div className="grid gap-3">
+      <Collapse title={t('klant.contact')} sub={t('werkbon.contact_sub')}>
+      <div className="grid gap-3 sm:grid-cols-2">
         <a
           href={`tel:${customer?.phone ?? ''}`}
           className="min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink"
@@ -264,8 +276,8 @@ export default function Werkbon() {
             {t('werkbon.notify_email')}
           </a>
         )}
-        {contacted && <Notice tone="ok">{t('werkbon.notify_sent')}</Notice>}
       </div>
+      {contacted && <div className="mt-3"><Notice tone="ok">{t('werkbon.notify_sent')}</Notice></div>}
 
       {notifications.length > 0 && (
         <Card className="mt-3">
@@ -278,11 +290,12 @@ export default function Werkbon() {
           ))}
         </Card>
       )}
+      </Collapse>
 
-      <SectionTitle>{t('werkbon.label_code')}</SectionTitle>
-      <div className="grid gap-3">
-        <Button onClick={() => db.reprint(wo.id, 'werkbon_label')}>{t('werkbon.reprint')}</Button>
-        <Button onClick={() => setShowQr((v) => !v)}>{t('werkbon.show_qr')}</Button>
+      <Collapse title={t('werkbon.label_code')} sub={t('werkbon.label_sub')}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Button full onClick={() => db.reprint(wo.id, 'werkbon_label')}>{t('werkbon.reprint')}</Button>
+        <Button full onClick={() => setShowQr((v) => !v)}>{t('werkbon.show_qr')}</Button>
       </div>
       {showQr && wo.tag_code && (
         <Card className="mt-3 text-center">
@@ -293,18 +306,18 @@ export default function Werkbon() {
           <div className="flex justify-center mt-2"><Qr text={publicUrl(wo.public_token)} modulePx={5} /></div>
         </Card>
       )}
+      </Collapse>
 
       {bike?.is_ebike && (
-        <>
-          <SectionTitle>{t('werkbon.battery')}</SectionTitle>
+        <Collapse title={t('werkbon.battery')} sub={t('werkbon.battery_sub')}>
           <p className="text-muted mb-3">{t('werkbon.battery_help')}</p>
-          <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {(['aangenomen', 'op_lader', 'van_lader', 'uitgegeven'] as const).map((event) => (
-              <Button key={event} onClick={() => db.logBattery(wo.id, event)}>
+              <Button key={event} full onClick={() => db.logBattery(wo.id, event)}>
                 {t(`battery.${event}`)}
               </Button>
             ))}
-            <Button variant="primary" onClick={() => db.printBatteryLabel(wo.id)}>
+            <Button variant="primary" full onClick={() => db.printBatteryLabel(wo.id)}>
               {t('werkbon.battery_label')}
             </Button>
           </div>
@@ -325,30 +338,30 @@ export default function Werkbon() {
               ))}
             </Card>
           )}
-        </>
+        </Collapse>
       )}
 
-      <SectionTitle>{t('werkbon.invoice')}</SectionTitle>
-      {invoice ? (
-        <Button full onClick={() => navigate(`/factuur/${invoice.id}`)}>
-          {t('werkbon.invoice_open')}
-        </Button>
-      ) : (
-        <Card>{t('factuur.none')}</Card>
+      {invoice && (
+        <Collapse title={t('werkbon.invoice')}>
+          <Button full onClick={() => navigate(`/factuur/${invoice.id}`)}>
+            {t('werkbon.invoice_open')}
+          </Button>
+        </Collapse>
       )}
 
-      <SectionTitle>{t('werkbon.timeline')}</SectionTitle>
-      <Card>
-        {events.map((e) => (
-          <p key={e.id} className="py-2 border-b-2 border-shell last:border-b-0">
-            <span className="font-semibold">{t(`event.${e.event}`)}</span>
-            {e.event === 'status_changed' && (
-              <span> — {t(`status.${e.payload.to as WorkOrderStatus}`)}</span>
-            )}
-            <span className="block text-sm text-muted">{dateTime(e.at)}</span>
-          </p>
-        ))}
-      </Card>
+      <Collapse title={t('werkbon.timeline')} sub={t('werkbon.timeline_sub', { count: events.length })}>
+        <Card>
+          {events.map((e) => (
+            <p key={e.id} className="py-2 border-b-2 border-shell last:border-b-0">
+              <span className="font-semibold">{t(`event.${e.event}`)}</span>
+              {e.event === 'status_changed' && (
+                <span> — {t(`status.${e.payload.to as WorkOrderStatus}`)}</span>
+              )}
+              <span className="block text-sm text-muted">{dateTime(e.at)}</span>
+            </p>
+          ))}
+        </Card>
+      </Collapse>
 
       {ordering && (
         <OrderPart woid={wo.id} onDone={() => setOrdering(false)} />

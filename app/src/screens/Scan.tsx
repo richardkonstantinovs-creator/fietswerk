@@ -107,7 +107,7 @@ export default function Scan() {
         />
       </Field>
       {error && <FieldError message={error} />}
-      <Button variant="primary" full onClick={openManual}>{t('scan.open')}</Button>
+      <Button full onClick={openManual}>{t('scan.open')}</Button>
     </div>
   )
 }

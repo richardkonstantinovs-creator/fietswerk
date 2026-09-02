@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { useT } from '../i18n'
 
 /**
@@ -28,7 +28,9 @@ export function Button({ variant = 'secondary', full, className = '', ...rest }:
       type="button"
       {...rest}
       className={[
-        'min-h-touch px-5 py-3 rounded-xl border-2 font-semibold text-lg',
+        // min-w-0: in een grid krimpt een knop anders niet mee en loopt een
+        // lang woord als "Onderhoudsabonnementen" buiten de rand door.
+        'min-h-touch min-w-0 px-5 py-3 rounded-xl border-2 font-semibold text-lg',
         'disabled:opacity-60 disabled:cursor-not-allowed',
         VARIANTS[variant], full ? 'w-full' : '', className,
       ].join(' ')}
@@ -117,6 +119,45 @@ export function Card({
 
 export function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-2xl font-semibold mt-8 mb-3">{children}</h2>
+}
+
+/**
+ * Blok dat dicht begint. Een werkbon heeft vijftien onderdelen, maar een
+ * monteur gebruikt er drie; de rest hoeft niet de hele dag in de weg te staan.
+ * Geen gebaar en geen pijltje alleen: er staat met woorden op de knop wat er
+ * gebeurt als je hem indrukt (sectie 2.2).
+ */
+export function Collapse({
+  title, sub, children, open: openDefault,
+}: {
+  title: string
+  sub?: string
+  children: ReactNode
+  open?: boolean
+}) {
+  const t = useT()
+  const [open, setOpen] = useState(openDefault ?? false)
+  const id = useId()
+  return (
+    <div className="mt-6">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+        className="w-full min-h-touch flex items-center justify-between gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-left hover:bg-shell"
+      >
+        <span>
+          <span className="block text-2xl font-semibold">{title}</span>
+          {sub && <span className="block text-sm text-muted">{sub}</span>}
+        </span>
+        <span className="font-semibold text-brand whitespace-nowrap">
+          {open ? t('common.hide') : t('common.show')}
+        </span>
+      </button>
+      {open && <div id={id} className="mt-3 fade-in">{children}</div>}
+    </div>
+  )
 }
 
 /**

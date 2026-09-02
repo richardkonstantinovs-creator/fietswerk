@@ -74,7 +74,7 @@ export default function Rapporten() {
 
   return (
     <div>
-      <BackLink to="/overzicht" labelKey="nav.overzicht" />
+      <BackLink to="/overzicht" labelKey="back.overzicht" />
       <h1 className="text-3xl font-semibold mb-4">{t('rapporten.title')}</h1>
 
       <SectionTitle>{t('rapporten.uncollected')}</SectionTitle>
@@ -111,7 +111,7 @@ export default function Rapporten() {
                 </button>
 
                 <p className="mt-3 font-semibold">{t('rapporten.reminder_log')}</p>
-                <div className="grid gap-3 mt-2">
+                <div className="grid gap-3 sm:grid-cols-2 mt-2">
                   {STEPS.map((s) => {
                     const at = done.find((r) => r.step === s.step)
                     return (
@@ -145,7 +145,7 @@ export default function Rapporten() {
 
       <SectionTitle>{t('rapporten.margin_vat')}</SectionTitle>
       <p className="text-muted mb-3">{t('rapporten.margin_vat_help')}</p>
-      <div className="grid gap-3 mb-4">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 mb-4">
         {PERIODS.map((p) => (
           <ChoiceButton
             key={p} selected={period === p} label={t(`rapporten.period_${p}`)}
@@ -163,7 +163,7 @@ export default function Rapporten() {
 
       <SectionTitle>{t('rapporten.export')}</SectionTitle>
       <p className="text-muted mb-3">{t('rapporten.export_help')}</p>
-      <div className="grid gap-3 mb-4">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 mb-4">
         {(['moneybird', 'eboekhouden', 'snelstart'] as Bookkeeping[]).map((b) => (
           <ChoiceButton
             key={b}

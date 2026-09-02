@@ -452,16 +452,19 @@ function AannameForm({ onNew }: { onNew: () => void }) {
 
       {error && <FieldError message={error} />}
 
-      <PrimaryBar>
-        {step < TOTAL_STEPS
-          ? <Button variant="primary" full onClick={goNext}>{t('common.next')}</Button>
-          : <Button variant="primary" full onClick={() => { void save() }}>{t('aanname.save')}</Button>}
+      <div className="mt-6 grid gap-3 grid-cols-2">
         {step > 1 && (
           <Button full onClick={() => { setError(null); setStep((s) => s - 1) }}>
             {t('common.previous')}
           </Button>
         )}
         <Button variant="quiet" full onClick={() => navigate('/')}>{t('common.cancel')}</Button>
+      </div>
+
+      <PrimaryBar>
+        {step < TOTAL_STEPS
+          ? <Button variant="primary" full onClick={goNext}>{t('common.next')}</Button>
+          : <Button variant="primary" full onClick={() => { void save() }}>{t('aanname.save')}</Button>}
       </PrimaryBar>
     </div>
   )
@@ -497,11 +500,14 @@ function SavedScreen({ wo, queued, onNew }: { wo: WorkOrder; queued: boolean; on
           <Qr text={publicUrl(wo.public_token)} modulePx={5} />
         </div>
       </Card>
+      <div className="mt-6">
+        <Button full onClick={onNew}>{t('aanname.saved_new')}</Button>
+      </div>
+
       <PrimaryBar>
         <Button variant="primary" full onClick={() => navigate(`/werkbon/${wo.id}`)}>
           {t('aanname.saved_open')}
         </Button>
-        <Button full onClick={onNew}>{t('aanname.saved_new')}</Button>
       </PrimaryBar>
     </div>
   )

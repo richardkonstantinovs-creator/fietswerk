@@ -19,7 +19,7 @@ export default function Onderdeel() {
   if (!p) {
     return (
       <div>
-        <BackLink to="/onderdelen" labelKey="nav.onderdelen" />
+        <BackLink to="/onderdelen" labelKey="back.onderdelen" />
         <Notice tone="danger">{t('common.no_results')}</Notice>
       </div>
     )
@@ -32,7 +32,7 @@ export default function Onderdeel() {
 
   return (
     <div>
-      <BackLink to="/onderdelen" labelKey="nav.onderdelen" />
+      <BackLink to="/onderdelen" labelKey="back.onderdelen" />
       <h1 className="text-3xl font-semibold mb-4">{p.name}</h1>
 
       <Card>

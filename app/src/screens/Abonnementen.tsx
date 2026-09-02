@@ -19,7 +19,7 @@ export default function Abonnementen() {
 
   return (
     <div>
-      <BackLink to="/overzicht" labelKey="nav.overzicht" />
+      <BackLink to="/overzicht" labelKey="back.overzicht" />
       <h1 className="text-3xl font-semibold mb-1">{t('abonnementen.title')}</h1>
       <p className="text-muted mb-4">{t('abonnementen.subtitle')}</p>
 
@@ -50,7 +50,7 @@ export default function Abonnementen() {
                 ? t('abonnementen.overdue', { days: Math.abs(days) })
                 : t('abonnementen.in_days', { days })}
             </p>
-            <div className="grid gap-3 mt-3">
+            <div className="grid gap-3 grid-cols-2 mt-3">
               <a
                 href={`https://wa.me/${whatsappNumber(customer?.phone ?? '')}?text=${encodeURIComponent(body)}`}
                 target="_blank"

@@ -137,14 +137,14 @@ const NAV = [
 
 /** Alles wat niet in de onderbalk past. Eén lijst, één plek om aan te passen. */
 const MEER = [
-  { to: '/onderdelen', key: 'nav.onderdelen' },
-  { to: '/klanten', key: 'nav.klanten' },
-  { to: '/occasions', key: 'nav.occasions' },
-  { to: '/overzicht', key: 'nav.overzicht' },
-  { to: '/bestellingen', key: 'bestellingen.title' },
-  { to: '/abonnementen', key: 'abonnementen.title' },
-  { to: '/accus', key: 'accus.title' },
-  { to: '/rapporten', key: 'rapporten.title' },
+  { to: '/onderdelen', key: 'nav.onderdelen', icon: IconOnderdelen },
+  { to: '/klanten', key: 'nav.klanten', icon: IconKlanten },
+  { to: '/occasions', key: 'nav.occasions', icon: IconOccasions },
+  { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
+  { to: '/bestellingen', key: 'bestellingen.title', icon: IconBestellingen },
+  { to: '/abonnementen', key: 'abonnementen.title', icon: IconAbonnementen },
+  { to: '/accus', key: 'accus.title', icon: IconAccus },
+  { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
 ]
 
 /**
@@ -199,6 +199,85 @@ function IconMeer() {
 
 // 60 px hoog + 8 px lucht boven en onder + de rand = de 78 px waar --tabbar in
 // index.css mee rekent. Wie dit verandert, verandert daar het getal mee.
+const SVG = {
+  width: 26, height: 26, viewBox: '0 0 24 24', fill: 'none',
+  stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const, 'aria-hidden': true,
+}
+
+function IconOnderdelen() {
+  return (
+    <svg {...SVG}>
+      <path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z" />
+      <path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" />
+    </svg>
+  )
+}
+
+function IconKlanten() {
+  return (
+    <svg {...SVG}>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  )
+}
+
+function IconOccasions() {
+  return (
+    <svg {...SVG}>
+      <circle cx="5.5" cy="16.5" r="4" />
+      <circle cx="18.5" cy="16.5" r="4" />
+      <path d="M5.5 16.5 10 8h5l3.5 8.5M8 8h4" />
+    </svg>
+  )
+}
+
+function IconOverzicht() {
+  return (
+    <svg {...SVG}>
+      <path d="M5 20V11M12 20V4M19 20v-6" />
+    </svg>
+  )
+}
+
+function IconBestellingen() {
+  return (
+    <svg {...SVG}>
+      <path d="M8 4h8l1 3H7z" />
+      <path d="M5.5 7h13l-1 13h-11z" />
+      <path d="M12 11v5M9.5 13.5 12 16l2.5-2.5" />
+    </svg>
+  )
+}
+
+function IconAbonnementen() {
+  return (
+    <svg {...SVG}>
+      <rect x="3.5" y="5.5" width="17" height="15" rx="2" />
+      <path d="M3.5 10h17M8 3.5v4M16 3.5v4M9 15l2 2 4-4" />
+    </svg>
+  )
+}
+
+function IconAccus() {
+  return (
+    <svg {...SVG}>
+      <rect x="2.5" y="7.5" width="16" height="9" rx="2" />
+      <path d="M21.5 11v2M6 10.5v3M10 10.5v3" />
+    </svg>
+  )
+}
+
+function IconRapporten() {
+  return (
+    <svg {...SVG}>
+      <path d="M6 3.5h7l5 5v12H6z" />
+      <path d="M13 3.5v5h5M9 13h6M9 16.5h4" />
+    </svg>
+  )
+}
+
 const TAB_CLASS = 'h-[60px] rounded-xl flex flex-col items-center justify-center gap-1 px-1 border-2 font-semibold text-xs leading-none no-underline'
 
 /** Onderbalk: alleen op de telefoon, altijd zichtbaar, nooit op papier. */
@@ -241,9 +320,9 @@ function TabBar({ onMeer, meerOpen }: { onMeer: () => void; meerOpen: boolean })
 }
 
 /**
- * "Meer" is één scherm met grote knoppen, geen uitklapmenu: uitklappen is een
- * derde niveau navigatie en dat mag niet (sectie 2.2). Op de pc is het een
- * gewoon venster, op de telefoon vult het het scherm.
+ * "Meer" klapt van bovenaf open, over de kop heen en niet over de lijst waar
+ * je mee bezig bent. Eén scherm met grote knoppen, geen uitklapmenu in een
+ * uitklapmenu: dat zou een derde niveau navigatie zijn (sectie 2.2).
  */
 function MeerSheet({ onClose }: { onClose: () => void }) {
   const t = useT()
@@ -258,7 +337,7 @@ function MeerSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="no-print fixed inset-0 z-50 bg-black/60 flex items-stretch sm:items-center justify-center sm:p-4"
+      className="no-print fixed inset-0 z-50 bg-black/60 flex items-start justify-center sm:p-4"
       onClick={onClose}
     >
       <div
@@ -266,7 +345,7 @@ function MeerSheet({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => { e.stopPropagation() }}
-        className="bg-white w-full sm:max-w-xl sm:rounded-2xl sm:border-2 sm:border-ink flex flex-col overflow-y-auto fade-in"
+        className="bg-white w-full sm:max-w-xl rounded-b-2xl sm:rounded-2xl border-b-2 sm:border-2 border-ink flex flex-col max-h-full overflow-y-auto slide-down"
       >
         <div className="sticky top-0 bg-white border-b-2 border-ink px-4 py-3 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-lg sm:text-2xl font-semibold truncate">{db.settings().shop_name}</h2>
@@ -274,11 +353,20 @@ function MeerSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="p-4 grid gap-3 sm:grid-cols-2">
-          {MEER.map((item) => (
-            <Button key={item.to} full onClick={() => { onClose(); navigate(item.to) }}>
-              {t(item.key)}
-            </Button>
-          ))}
+          {MEER.map((item) => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.to}
+                type="button"
+                onClick={() => { onClose(); navigate(item.to) }}
+                className="min-h-touch min-w-0 flex items-center gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg text-left hover:bg-shell"
+              >
+                <span className="shrink-0"><Icon /></span>
+                <span className="min-w-0">{t(item.key)}</span>
+              </button>
+            )
+          })}
         </div>
 
         <div className="px-4 pb-6 pt-2 flex flex-col gap-4 border-t-2 border-shell">

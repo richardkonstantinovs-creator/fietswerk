@@ -41,7 +41,7 @@ export default function Bestellingen() {
 
   return (
     <div>
-      <BackLink to="/onderdelen" labelKey="nav.onderdelen" />
+      <BackLink to="/onderdelen" labelKey="back.onderdelen" />
       <h1 className="text-3xl font-semibold mb-4">{t('bestellingen.title')}</h1>
 
       <Field label={t('onderdelen.scan_ean')} hint={t('bestellingen.scan_help')} htmlFor="ean">

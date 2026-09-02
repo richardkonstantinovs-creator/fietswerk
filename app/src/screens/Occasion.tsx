@@ -30,7 +30,7 @@ export default function Occasion() {
   if (!stb) {
     return (
       <div>
-        <BackLink to="/occasions" labelKey="occasions.title" />
+        <BackLink to="/occasions" labelKey="back.occasions" />
         <Notice tone="danger">{t('common.no_results')}</Notice>
       </div>
     )
@@ -44,7 +44,7 @@ export default function Occasion() {
 
   return (
     <div>
-      <BackLink to="/occasions" labelKey="occasions.title" />
+      <BackLink to="/occasions" labelKey="back.occasions" />
       <h1 className="text-3xl font-semibold mb-2">{bike?.brand} {bike?.model}</h1>
       <p className="text-lg mb-4">{[bike?.color, bike?.model_year, bike?.frame_number].filter(Boolean).join(' · ')}</p>
 

@@ -132,7 +132,7 @@ function Big({ label, value, children }: { label: string; value: string; childre
   return (
     <Card>
       <p className="font-semibold">{label}</p>
-      <p className="text-5xl font-semibold my-2">{value}</p>
+      <p className="text-4xl sm:text-5xl font-semibold my-2">{value}</p>
       <div className="text-muted">{children}</div>
     </Card>
   )
