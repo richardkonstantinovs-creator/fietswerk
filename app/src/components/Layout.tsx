@@ -17,6 +17,7 @@ export function usePrinterStatus() {
 
 const CHIP = 'inline-flex items-center gap-2 px-3 py-1 rounded-xl border-2 font-semibold text-xs'
 const CHIP_OK = 'bg-[#E3F0E7] border-ok text-[#0B4A22]'
+const DOT_ROW = 'flex items-center gap-2 text-xs font-semibold leading-tight'
 
 /**
  * Sectie 9.7 — grote, permanente printerindicator met één knop. Geen jargon.
@@ -65,6 +66,10 @@ function PrinterNote() {
 /**
  * Sectie 8.8 — de staat van de verbinding in gewone woorden. Nooit een
  * wolkje zonder tekst: dan weet niemand wat er aan de hand is.
+ *
+ * Alleen als er iets aan de hand is. Opgeslagen is de normale gang van zaken;
+ * daar een groene plaat voor bovenaan het schermpje van een telefoon opeisen
+ * kost een regel die de monteur elke keer weer moet wegkijken.
  */
 function SyncBadge() {
   const t = useT()
@@ -72,12 +77,33 @@ function SyncBadge() {
   useDbVersion()
   const waiting = db.pendingOutbox().length
 
-  const ok = online && waiting === 0
+  if (online && waiting === 0) return null
   return (
-    <span className={[CHIP, ok ? CHIP_OK : 'bg-[#FBEFDB] border-warn text-[#5C3A00]'].join(' ')}>
-      <span aria-hidden="true">{ok ? '●' : '○'}</span>
-      {ok ? t('sync.saved') : waiting > 0 ? t('sync.waiting', { count: waiting }) : t('sync.offline')}
+    <span className={[CHIP, 'bg-[#FBEFDB] border-warn text-[#5C3A00]'].join(' ')}>
+      <span aria-hidden="true">○</span>
+      {waiting > 0 ? t('sync.waiting', { count: waiting }) : t('sync.offline')}
     </span>
+  )
+}
+
+/**
+ * De kop van de telefoon. Staat er niets te melden — geen printer op dit
+ * toestel en alles opgeslagen — dan komt er ook geen lege balk met een streep
+ * onder: het scherm begint dan gewoon bij het werk.
+ */
+function PhoneHeader() {
+  const online = useOnline()
+  const { status } = usePrinterStatus()
+  useDbVersion()
+  const stil = status === 'unsupported' && online && db.pendingOutbox().length === 0
+  if (stil) return null
+  return (
+    <header className="no-print sm:hidden sticky top-0 z-30 bg-white border-b-2 border-[#E2E2E2]">
+      <div className="px-4 py-2 flex items-center gap-2 flex-wrap">
+        <PrinterBadge />
+        <SyncBadge />
+      </div>
+    </header>
   )
 }
 
@@ -94,7 +120,7 @@ function LanguageSwitch() {
             aria-pressed={lang === l}
             onClick={() => setLang(l)}
             className={[
-              'min-h-touch min-w-touch px-4 rounded-xl border-2 font-semibold',
+              'press min-h-touch min-w-touch px-4 rounded-xl border-2 font-semibold',
               lang === l ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-ink',
             ].join(' ')}
           >
@@ -109,22 +135,14 @@ function LanguageSwitch() {
 /**
  * Wie er werkt staat onderin de zijbalk, op de telefoon achter "Meer".
  * Afmelden en de taal gebeuren een paar keer per jaar en staan daarom achter
- * "Instellingen"; zo houdt de kop van het scherm één regel over voor de dingen
- * die de hele dag meekijken: de printer en het opslaan.
+ * "Instellingen"; in de zijbalk zelf staat alleen de naam en de rol, zodat één
+ * regel genoeg is.
  */
-function UserBadge({ withLogout, compact }: { withLogout?: boolean; compact?: boolean }) {
+function UserBadge({ withLogout }: { withLogout?: boolean }) {
   const t = useT()
   useDbVersion()
   const user = db.currentUser()
   if (!user) return null
-  if (compact) {
-    return (
-      <span className="block min-w-0">
-        <span className="block text-sm font-semibold truncate">{user.name}</span>
-        <span className="block text-xs text-muted truncate">{t(`role.${user.role}`)}</span>
-      </span>
-    )
-  }
   return (
     <span className={withLogout ? 'flex flex-col gap-3' : 'block min-w-0'}>
       <span className={withLogout ? 'text-sm font-semibold' : 'block text-sm font-semibold truncate'}>
@@ -306,6 +324,15 @@ function IconAccus() {
   )
 }
 
+function IconInstellingen() {
+  return (
+    <svg {...SVG} className="shrink-0 text-muted">
+      <circle cx="12" cy="12" r="3.25" />
+      <path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3" />
+    </svg>
+  )
+}
+
 function IconRapporten() {
   return (
     <svg {...SVG}>
@@ -324,7 +351,7 @@ function TabBar({ onMeer, meerOpen }: { onMeer: () => void; meerOpen: boolean })
   return (
     <nav
       aria-label={t('nav.menu')}
-      className="no-print sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t-2 border-ink pb-safe"
+      className="no-print sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t-2 border-[#E2E2E2] lift-bar pb-safe"
     >
       <div className="grid grid-cols-3 gap-3 px-3 py-2">
         {TABS.map((tab) => {
@@ -335,7 +362,7 @@ function TabBar({ onMeer, meerOpen }: { onMeer: () => void; meerOpen: boolean })
               key={tab.to}
               to={tab.to}
               aria-current={active ? 'page' : undefined}
-              className={[TAB_CLASS, active ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-ink'].join(' ')}
+              className={[TAB_CLASS, 'press', active ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-ink'].join(' ')}
             >
               <Icon />
               {t(tab.key)}
@@ -346,7 +373,7 @@ function TabBar({ onMeer, meerOpen }: { onMeer: () => void; meerOpen: boolean })
           type="button"
           onClick={onMeer}
           aria-expanded={meerOpen}
-          className={[TAB_CLASS, meerOpen ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-ink'].join(' ')}
+          className={[TAB_CLASS, 'press', meerOpen ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-ink'].join(' ')}
         >
           <IconMeer />
           {t('nav.meer')}
@@ -357,24 +384,105 @@ function TabBar({ onMeer, meerOpen }: { onMeer: () => void; meerOpen: boolean })
 }
 
 const ZIJ_LINK =
-  'min-h-touch flex items-center gap-3 px-3 py-2 rounded-xl border-2 font-semibold text-sm leading-tight no-underline'
+  'min-h-touch flex items-center gap-3 px-3 py-2 rounded-xl border-2 font-semibold text-base leading-tight no-underline'
+
+/**
+ * De staat van het gereedschap, onderin de zijbalk. Eén regel, en alleen als
+ * er iets te melden is: "alles is opgeslagen" is de gewone gang van zaken en
+ * hoeft de hele dag geen groene plaat op te eisen. Zodra er wél iets wacht of
+ * de verbinding weg is, staat het er wel — dat is het moment dat het telt.
+ */
+function SidebarStatus() {
+  const t = useT()
+  const online = useOnline()
+  const { status } = usePrinterStatus()
+  useDbVersion()
+  const outbox = db.pendingOutbox().length
+  const labels = db.pendingPrintJobs().length
+
+  const printerOk = status === 'ready' || status === 'printing'
+  const printerHidden = status === 'unsupported'
+  const syncOk = online && outbox === 0
+
+  const rows: ReactNode[] = []
+  if (!syncOk) {
+    rows.push(
+      <span key="sync" className={[DOT_ROW, 'text-[#5C3A00]'].join(' ')}>
+        <span className="h-2 w-2 rounded-full bg-warn shrink-0" aria-hidden="true" />
+        {outbox > 0 ? t('sync.waiting', { count: outbox }) : t('sync.offline')}
+      </span>,
+    )
+  }
+  if (!printerHidden && !printerOk) {
+    rows.push(
+      <span key="printer" className="flex items-center justify-between gap-2">
+        <span className={[DOT_ROW, 'text-[#7A1610] min-w-0'].join(' ')}>
+          <span className="h-2 w-2 rounded-full bg-danger shrink-0" aria-hidden="true" />
+          <span className="truncate">
+            {status === 'connecting' ? t('printer.connecting') : t('printer.disconnected')}
+          </span>
+        </span>
+        <button
+          type="button"
+          onClick={() => { void printer.connect() }}
+          className="shrink-0 rounded-lg border-2 border-ink px-2 py-1 text-xs font-semibold hover:bg-shell"
+        >
+          {t('printer.connect')}
+        </button>
+      </span>,
+    )
+  }
+  if (labels > 0) {
+    rows.push(
+      <span key="labels" className={[DOT_ROW, 'text-[#5C3A00]'].join(' ')}>
+        <span className="h-2 w-2 rounded-full bg-warn shrink-0" aria-hidden="true" />
+        {t('printer.queue', { count: labels })}
+      </span>,
+    )
+  }
+
+  // Niets aan de hand: één rustige regel, zodat de monteur toch kan zien dat
+  // er gekeken is. Geen kleurvlak, geen knop, geen twee regels.
+  if (rows.length === 0) {
+    if (printerHidden) {
+      return (
+        <span className={[DOT_ROW, 'text-muted'].join(' ')}>
+          <span className="h-2 w-2 rounded-full bg-ok shrink-0" aria-hidden="true" />
+          {t('sync.saved')}
+        </span>
+      )
+    }
+    return (
+      <span className={[DOT_ROW, 'text-muted'].join(' ')}>
+        <span className="h-2 w-2 rounded-full bg-ok shrink-0" aria-hidden="true" />
+        <span className="truncate">{t('sync.saved')} · {t('printer.ready')}</span>
+      </span>
+    )
+  }
+
+  return <span className="flex flex-col gap-2">{rows}</span>
+}
 
 /**
  * De zijbalk staat vast aan de linkerkant en blijft staan waar hij staat, ook
  * als het scherm eronder doorscrollt. Alle tien de bestemmingen passen erin
- * zonder te scrollen: tien regels van 56 px met 12 px ertussen (sectie 2.2) is
- * precies wat er in staat, dus er hoort niets anders bij. Wie er werkt en de
- * instellingen staan daarom in de kop.
+ * zonder te scrollen: tien regels van 56 px met 12 px ertussen (sectie 2.2).
+ *
+ * Onderin staat wat de hele dag meekijkt: de staat van printer en opslag, en
+ * wie er werkt met de weg naar de instellingen. Dat is één blok van twee
+ * regels in plaats van een balk boven elk scherm, en het staat waar het hoort:
+ * bij het gereedschap, niet bij het werk.
  *
  * Alleen op tablet en pc: op de telefoon is er geen ruimte naast het scherm en
  * blijft de onderbalk staan.
  */
-function Sidebar() {
+function Sidebar({ onSettings }: { onSettings: () => void }) {
   const t = useT()
   const location = useLocation()
   useDbVersion()
+  const user = db.currentUser()
   return (
-    <aside className="no-print hidden sm:flex fixed inset-y-0 left-0 z-40 w-80 flex-col bg-white border-r-2 border-ink">
+    <aside className="no-print hidden sm:flex fixed inset-y-0 left-0 z-40 w-80 flex-col bg-white border-r-2 border-[#E2E2E2]">
       <nav aria-label={t('nav.menu')} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3">
         {ZIJBALK.map((item) => {
           const active = isActive(location.pathname, item.to)
@@ -386,9 +494,10 @@ function Sidebar() {
               aria-current={active ? 'page' : undefined}
               className={[
                 ZIJ_LINK,
+                'press',
                 active
                   ? 'bg-ink text-white border-ink'
-                  : 'bg-white text-ink border-white hover:bg-shell',
+                  : 'bg-white text-ink border-white hover:bg-shell hover:border-shell',
               ].join(' ')}
             >
               <span className="shrink-0"><Icon /></span>
@@ -397,6 +506,23 @@ function Sidebar() {
           )
         })}
       </nav>
+
+      <div className="shrink-0 border-t-2 border-shell p-3 flex flex-col gap-3">
+        <SidebarStatus />
+        <button
+          type="button"
+          onClick={onSettings}
+          className="press min-h-touch flex items-center gap-3 px-3 py-2 rounded-xl border-2 border-white bg-white text-left hover:bg-shell hover:border-shell"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold truncate">{user ? user.name : t('nav.instellingen')}</span>
+            <span className="block text-xs text-muted truncate">
+              {user ? t(`role.${user.role}`) : db.settings().shop_name}
+            </span>
+          </span>
+          <IconInstellingen />
+        </button>
+      </div>
     </aside>
   )
 }
@@ -427,7 +553,7 @@ function MeerSheet({ onClose, metNav }: { onClose: () => void; metNav: boolean }
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => { e.stopPropagation() }}
-        className="bg-white w-full sm:max-w-xl rounded-b-2xl sm:rounded-2xl border-b-2 sm:border-2 border-ink flex flex-col max-h-full overflow-y-auto slide-down"
+        className="bg-white w-full sm:max-w-xl rounded-b-2xl sm:rounded-2xl border-b-2 sm:border-2 border-ink flex flex-col max-h-full overflow-y-auto slide-down shadow-[0_12px_40px_rgba(17,17,17,.25)]"
       >
         <div className="sticky top-0 bg-white border-b-2 border-ink px-4 py-3 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-lg sm:text-2xl font-semibold truncate">{db.settings().shop_name}</h2>
@@ -446,7 +572,7 @@ function MeerSheet({ onClose, metNav }: { onClose: () => void; metNav: boolean }
                   key={item.to}
                   type="button"
                   onClick={() => { onClose(); navigate(item.to) }}
-                  className="min-h-touch min-w-0 flex items-center gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg text-left hover:bg-shell"
+                  className="press min-h-touch min-w-0 flex items-center gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg text-left hover:bg-shell"
                 >
                   <span className="shrink-0"><Icon /></span>
                   <span className="min-w-0">{t(item.key)}</span>
@@ -467,7 +593,6 @@ function MeerSheet({ onClose, metNav }: { onClose: () => void; metNav: boolean }
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const t = useT()
   const navigate = useNavigate()
   const [sheet, setSheet] = useState<'meer' | 'instellingen' | null>(null)
 
@@ -485,30 +610,16 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="has-tabbar min-h-full flex flex-col">
       {/* Tablet en pc: het menu staat links en blijft staan. */}
-      <Sidebar />
+      <Sidebar onSettings={() => { setSheet('instellingen') }} />
 
       <div className="flex-1 flex flex-col sm:pl-80">
-        {/* De kop blijft staan: printer en opslag moeten altijd zichtbaar zijn
-            (sectie 9.7, 8.8). Rechts staat wie er werkt, met de knop naar de
-            taal en het afmelden ernaast; op de telefoon staat dat achter
-            "Meer". De zijbalk houdt zo alle ruimte voor bestemmingen. */}
-        <header className="no-print sticky top-0 z-30 bg-white border-b-2 border-ink">
-          <div className="px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
-            <PrinterBadge />
-            <SyncBadge />
-            <div className="hidden sm:flex items-center gap-3 ml-auto">
-              <span className="min-w-0"><UserBadge /></span>
-              <Button
-                className="text-sm px-4 shrink-0"
-                onClick={() => { setSheet('instellingen') }}
-              >
-                {t('nav.instellingen')}
-              </Button>
-            </div>
-          </div>
-        </header>
+        {/* Alleen op de telefoon: daar is geen zijbalk, dus staan printer en
+            opslag boven het scherm (sectie 9.7, 8.8). Op tablet en pc staat
+            diezelfde staat onderin de zijbalk en blijft de kop weg — die kostte
+            boven elk scherm een regel voor iets wat bijna altijd goed is. */}
+        <PhoneHeader />
 
-        <main className="flex-1 mx-auto w-full max-w-3xl px-4 pb-app">{children}</main>
+        <main className="flex-1 mx-auto w-full max-w-3xl px-4 sm:px-8 pb-app">{children}</main>
       </div>
 
       <TabBar onMeer={() => { setSheet('meer') }} meerOpen={sheet === 'meer'} />

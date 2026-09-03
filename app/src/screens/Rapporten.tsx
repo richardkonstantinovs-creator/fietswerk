@@ -132,7 +132,7 @@ export default function Rapporten() {
                     target="_blank"
                     rel="noreferrer"
                     onClick={() => db.logNotification('whatsapp', 'herinnering', body, wo.id, wo.customer_id)}
-                    className="min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink"
+                    className="press min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink hover:bg-shell"
                   >
                     {t('werkbon.whatsapp')}
                   </a>

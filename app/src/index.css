@@ -5,9 +5,25 @@
 /* Sectie 2.2 — alleen licht thema, hoog contrast, geen dunne letters. */
 :root {
   color-scheme: light;
-  font-family: 'Segoe UI', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  /* De letter van het toestel zelf: op Windows Segoe UI, op de iPad en de Mac
+     San Francisco. Die zijn gemaakt voor schermen, staan al op de machine (de
+     app werkt offline, dus een letter van internet is geen optie) en zijn op
+     20 px rustiger dan Helvetica of Arial. */
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+    ui-sans-serif, system-ui, 'Helvetica Neue', Arial, sans-serif;
   font-synthesis: none;
   -webkit-text-size-adjust: 100%;
+
+  /* Cijfers even breed. Een kolom bedragen of bonnummers staat dan recht onder
+     elkaar en een 1 maakt de regel niet smaller dan een 8. */
+  font-variant-numeric: tabular-nums;
+
+  /* Diepte in plaats van nog een zwarte rand: een kaart ligt op het grijs, de
+     balk met de hoofdknop ligt over de bladzijde heen. Zacht genoeg om niet op
+     te vallen, sterk genoeg om de laag te laten zien. */
+  --lift: 0 1px 2px rgba(17, 17, 17, .06), 0 2px 8px rgba(17, 17, 17, .05);
+  --lift-hover: 0 2px 4px rgba(17, 17, 17, .08), 0 6px 16px rgba(17, 17, 17, .08);
+  --lift-bar: 0 -2px 12px rgba(17, 17, 17, .07);
 }
 
 html, body, #root { height: 100%; }
@@ -34,6 +50,33 @@ button, a { overflow-wrap: break-word; hyphens: auto; }
 
 button, input, select, textarea { font-family: inherit; font-size: inherit; color: #111111; }
 
+/* Twee dingen die een aanraakscherm anders zelf doet en die in de weg zitten:
+   wachten of er nog een tweede tik komt (dat voelt als een trage app), en een
+   blauw vlak over de knop leggen. Wij zeggen zelf wel dat er gedrukt is. */
+button, a, label, summary, [role='button'] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* De kop blijft boven het scherm staan; zonder deze regel schuift een veld
+   waar je heen springt eronder. */
+html { scroll-padding-top: 96px; }
+
+::selection { background: #CFE0F5; color: #111111; }
+
+/* Ingedrukt is te zien én te voelen: de knop zakt een haar en wordt donkerder.
+   Geen gebaar, geen extra stap — alleen bevestiging dat de tik aankwam. Wie
+   beweging heeft uitgezet, houdt de kleur; die is de eigenlijke boodschap. */
+.press { transition: background-color 100ms ease-out, box-shadow 100ms ease-out, border-color 100ms ease-out; }
+@media (prefers-reduced-motion: no-preference) {
+  .press { transition: background-color 100ms ease-out, box-shadow 100ms ease-out, border-color 100ms ease-out, transform 80ms ease-out; }
+  .press:active:not(:disabled) { transform: translateY(1px); }
+}
+
+.lift { box-shadow: var(--lift); }
+.lift-hover:hover { box-shadow: var(--lift-hover); }
+.lift-bar { box-shadow: var(--lift-bar); }
+
 /* Sectie 2.2 — animaties alleen eenvoudig en kort. */
 @media (prefers-reduced-motion: no-preference) {
   .fade-in { animation: fade-in 150ms ease-out; }
@@ -48,7 +91,9 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 @keyframes slide-down { from { transform: translateY(-12px); opacity: 0 } to { transform: none; opacity: 1 } }
 
 /* Focus altijd zichtbaar en dik genoeg voor oudere ogen. */
-:focus-visible { outline: 4px solid #0B4F9E; outline-offset: 2px; }
+:focus-visible { outline: 4px solid #0B4F9E; outline-offset: 2px; border-radius: inherit; }
+/* Een veld dat aan de beurt is, hoort ook zonder de ring op te vallen. */
+input:focus, textarea:focus, select:focus { background: #FFFFFF; }
 
 /* De onderbalk op de telefoon is vast en dekt de onderkant af. Alles wat
    onderaan hoort — de hoofdknop van een scherm en het einde van de pagina —
@@ -67,6 +112,7 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
    Alles wat alleen op het scherm hoort, verdwijnt bij het afdrukken. */
 @media print {
   .no-print { display: none !important; }
+  .lift, .lift-bar { box-shadow: none !important; }
   body { background: #FFFFFF; font-size: 12pt; }
   .has-tabbar { --tabbar: 0px; }
   .print-sheet { border: 0 !important; padding: 0 !important; max-width: none !important; }

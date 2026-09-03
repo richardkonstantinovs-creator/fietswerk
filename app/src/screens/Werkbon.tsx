@@ -238,7 +238,7 @@ export default function Werkbon() {
       <div className="grid gap-3 sm:grid-cols-2">
         <a
           href={`tel:${customer?.phone ?? ''}`}
-          className="min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink"
+          className="press press min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink hover:bg-shell"
         >
           {t('werkbon.call_customer')}
         </a>
@@ -256,7 +256,7 @@ export default function Werkbon() {
               db.logNotification('whatsapp', template, messageBody(template), wo.id, wo.customer_id)
               setContacted(true)
             }}
-            className="min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink"
+            className="press press min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink hover:bg-shell"
           >
             {t(labelKey)}
           </a>
@@ -271,7 +271,7 @@ export default function Werkbon() {
               db.logNotification('email', template, messageBody(template), wo.id, wo.customer_id)
               setContacted(true)
             }}
-            className="min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink"
+            className="press press min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink hover:bg-shell"
           >
             {t('werkbon.notify_email')}
           </a>

@@ -115,7 +115,7 @@ export default function PublicStatus() {
           <p className="text-2xl font-semibold">{tNL('public.not_found')}</p>
           <a
             href={`tel:${shop.phone}`}
-            className="mt-5 min-h-touch flex items-center justify-center gap-3 px-5 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg no-underline"
+            className="press mt-5 min-h-touch flex items-center justify-center gap-3 px-5 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg no-underline hover:bg-shell"
           >
             {tNL('public.call_button')}: {phoneDisplay(shop.phone)}
           </a>
@@ -226,7 +226,7 @@ export default function PublicStatus() {
 
       <a
         href={`tel:${shop.phone}`}
-        className="mt-8 min-h-touch flex items-center justify-center gap-3 px-5 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg no-underline"
+        className="press mt-8 min-h-touch flex items-center justify-center gap-3 px-5 rounded-xl border-2 border-ink bg-white text-ink font-semibold text-lg no-underline hover:bg-shell"
       >
         {tNL('public.call_button')}: {phoneDisplay(shop.phone)}
       </a>

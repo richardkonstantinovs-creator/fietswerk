@@ -34,7 +34,7 @@ export default function Inkoopverklaring() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="min-h-touch px-5 rounded-xl border-2 border-ink bg-white font-semibold text-left"
+          className="press min-h-touch px-5 rounded-xl border-2 border-ink bg-white font-semibold text-left hover:bg-shell"
         >
           {tNL('common.close')}
         </button>

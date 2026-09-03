@@ -22,6 +22,7 @@
   "common.search_placeholder": "Telefoon, naam, framenummer of labelcode",
   "common.search_hint": "Typ minstens 2 tekens. U kunt ook een label scannen.",
   "common.no_results": "Niets gevonden. Probeer een telefoonnummer of de labelcode.",
+  "common.clear": "Wissen",
   "common.cancel": "Annuleren",
   "common.save": "Opslaan",
   "common.next": "Volgende stap",

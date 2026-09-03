@@ -56,7 +56,7 @@ export default function Abonnementen() {
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => db.logNotification('whatsapp', 'onderhoud', body, null, c.customer_id, c.id)}
-                className="min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink"
+                className="press min-h-touch flex items-center justify-center px-5 rounded-xl border-2 border-ink bg-white font-semibold no-underline text-ink hover:bg-shell"
               >
                 {t('abonnementen.remind')}
               </a>

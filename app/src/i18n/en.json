@@ -22,6 +22,7 @@
   "common.search_placeholder": "Phone, name, frame number (framenummer) or label code",
   "common.search_hint": "Type at least 2 characters. You can also scan a label.",
   "common.no_results": "Nothing found. Try a phone number or the label code.",
+  "common.clear": "Clear",
   "common.cancel": "Cancel",
   "common.save": "Save",
   "common.next": "Next step",

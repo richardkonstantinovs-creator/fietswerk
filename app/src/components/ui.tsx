@@ -11,10 +11,10 @@ import { useT } from '../i18n'
 type Variant = 'primary' | 'secondary' | 'quiet' | 'danger'
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-brand text-white border-brand hover:bg-brandDark',
-  secondary: 'bg-white text-ink border-ink hover:bg-shell',
-  quiet: 'bg-shell text-ink border-line hover:bg-white',
-  danger: 'bg-white text-danger border-danger hover:bg-[#FBEAE9]',
+  primary: 'bg-brand text-white border-brand hover:bg-brandDark active:bg-brandDark',
+  secondary: 'bg-white text-ink border-ink hover:bg-shell active:bg-[#E6E6E6]',
+  quiet: 'bg-shell text-ink border-line hover:bg-white active:bg-[#E6E6E6]',
+  danger: 'bg-white text-danger border-danger hover:bg-[#FBEAE9] active:bg-[#F6D9D7]',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -30,7 +30,7 @@ export function Button({ variant = 'secondary', full, className = '', ...rest }:
       className={[
         // min-w-0: in een grid krimpt een knop anders niet mee en loopt een
         // lang woord als "Onderhoudsabonnementen" buiten de rand door.
-        'min-h-touch min-w-0 px-5 py-3 rounded-xl border-2 font-semibold text-lg',
+        'press min-h-touch min-w-0 px-5 py-3 rounded-xl border-2 font-semibold text-lg',
         'disabled:opacity-60 disabled:cursor-not-allowed',
         VARIANTS[variant], full ? 'w-full' : '', className,
       ].join(' ')}
@@ -44,7 +44,7 @@ export function Button({ variant = 'secondary', full, className = '', ...rest }:
  */
 export function PrimaryBar({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-app left-0 right-0 bg-shell border-t-2 border-line px-4 py-3 mt-8 -mx-4">
+    <div className="lift-bar sticky bottom-app left-0 right-0 bg-shell border-t-2 border-line px-4 sm:px-8 py-3 mt-8 -mx-4 sm:-mx-8">
       <div className="mx-auto max-w-3xl flex flex-col gap-3">{children}</div>
     </div>
   )
@@ -62,8 +62,8 @@ export function Field({
   return (
     <div className="mb-6">
       {/* Label boven het veld; placeholder-als-label is verboden (sectie 2.2). */}
-      <label htmlFor={htmlFor} className="block font-semibold mb-2">{label}</label>
-      {hint && <p className="text-sm text-muted mb-2">{hint}</p>}
+      <label htmlFor={htmlFor} className="block font-semibold mb-1">{label}</label>
+      {hint && <p className="text-sm text-muted mb-2 max-w-prose">{hint}</p>}
       {children}
       {error && <FieldError message={error} />}
     </div>
@@ -80,9 +80,11 @@ export function FieldError({ message }: { message: string }) {
   )
 }
 
+// Een veld zakt niet in als je erop drukt (dat doet een knop); het laat alleen
+// zien dat het aan de beurt is.
 const INPUT_CLASS =
-  'w-full min-h-touch px-4 py-3 border-2 border-ink rounded-xl bg-white text-lg ' +
-  'placeholder:text-muted'
+  'w-full min-h-touch px-4 py-3 border-2 border-ink rounded-xl bg-white text-lg transition-colors ' +
+  'placeholder:text-muted hover:border-brand focus:border-brand'
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${INPUT_CLASS} ${props.className ?? ''}`} />
@@ -106,19 +108,19 @@ export function Card({
       <button
         type="button"
         onClick={onClick}
-        className={`w-full text-left bg-white border-2 border-ink rounded-2xl p-4 hover:bg-shell ${className}`}
+        className={`press lift lift-hover w-full text-left bg-white border-2 border-ink rounded-2xl p-4 hover:bg-[#FAFAFA] ${className}`}
       >
         {children}
       </button>
     )
   }
   return (
-    <div className={`bg-white border-2 border-line rounded-2xl p-4 ${className}`}>{children}</div>
+    <div className={`lift bg-white border-2 border-line rounded-2xl p-4 ${className}`}>{children}</div>
   )
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-2xl font-semibold mt-8 mb-3">{children}</h2>
+  return <h2 className="text-2xl font-semibold mt-8 mb-3 pt-4 border-t-2 border-shell">{children}</h2>
 }
 
 /**
@@ -145,7 +147,7 @@ export function Collapse({
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((v) => !v)}
-        className="w-full min-h-touch flex items-center justify-between gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-left hover:bg-shell"
+        className="press w-full min-h-touch flex items-center justify-between gap-4 px-4 py-3 rounded-xl border-2 border-ink bg-white text-left hover:bg-[#FAFAFA]"
       >
         <span>
           <span className="block text-2xl font-semibold">{title}</span>
@@ -182,7 +184,7 @@ export function Confirm({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="bg-white border-2 border-ink rounded-2xl p-6 w-full max-w-xl fade-in"
+        className="bg-white border-2 border-ink rounded-2xl p-6 w-full max-w-xl fade-in shadow-[0_12px_40px_rgba(17,17,17,.25)]"
       >
         <h2 id={titleId} className="text-3xl font-semibold mb-3">{question}</h2>
         {explain && <p className="mb-6 text-muted">{explain}</p>}
@@ -207,9 +209,13 @@ export function Notice({
     warn: 'bg-[#FBEFDB] border-warn text-[#5C3A00]',
     danger: 'bg-[#FBEAE9] border-danger text-[#7A1610]',
   }
+  // Het teken staat er voor wie kleuren slecht ziet: groen en rood zijn dan
+  // hetzelfde grijs, een vinkje en een uitroepteken niet (sectie 2.2).
+  const signs = { ok: '✓', warn: '!', danger: '⚠' }
   return (
-    <div className={`border-2 rounded-2xl p-4 font-semibold ${tones[tone]}`} role="status">
-      {children}
+    <div className={`lift border-2 rounded-2xl p-4 font-semibold flex items-start gap-3 ${tones[tone]}`} role="status">
+      <span aria-hidden="true" className="text-2xl leading-none shrink-0">{signs[tone]}</span>
+      <span className="min-w-0">{children}</span>
     </div>
   )
 }
@@ -224,8 +230,10 @@ export function ChoiceButton({
       aria-pressed={selected}
       onClick={onClick}
       className={[
-        'min-h-touch w-full text-left px-4 py-3 rounded-xl border-2 font-semibold',
-        selected ? 'bg-brand text-white border-brand' : 'bg-white text-ink border-ink hover:bg-shell',
+        'press min-h-touch w-full text-left px-4 py-3 rounded-xl border-2 font-semibold',
+        selected
+          ? 'bg-brand text-white border-brand'
+          : 'bg-white text-ink border-ink hover:bg-[#FAFAFA] hover:border-brand',
       ].join(' ')}
     >
       <span className="flex items-start gap-3">
