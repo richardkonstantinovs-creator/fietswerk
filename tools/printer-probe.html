@@ -44,13 +44,18 @@ op andermans protocol kost een avond.</p>
   <li>Bekijk hieronder alle services en characteristics.</li>
   <li>Druk op <em>Papier doorvoeren</em>. Gaat het papier bewegen, dan is de
       cat-printer-familie bevestigd en kan de driver gebouwd worden.</li>
-  <li>Is er geen service <code>ae30</code>? Kopieer de dump en stop hier.</li>
+  <li>Is er geen service <code>ae30</code>, maar wel <code>18f0</code>, <code>ff00</code>
+      of <code>e7810a71</code>? Dan is dit waarschijnlijk een gewone ESC/POS-printer.
+      Druk op <em>ESC/POS: alle kanalen proberen</em>: die stuurt naar elk kanaal
+      een genummerde regel en een zwart balkje. Kijk daarna op de bon welk nummer
+      eruit komt — dat nummer is het kanaal waar de driver op moet.</li>
 </ol>
 
 <p>
   <button id="scan">Printer zoeken</button>
   <button id="scanAll" class="secondary">Alles zoeken (geen filter)</button>
   <button id="feed" class="secondary" disabled>Papier doorvoeren (30 stappen)</button>
+  <button id="escpos" class="secondary" disabled>ESC/POS: alle kanalen proberen</button>
   <button id="copy" class="secondary">Dump kopiëren</button>
 </p>
 
@@ -86,6 +91,19 @@ if (!('bluetooth' in navigator)) {
 }
 
 let writeCharacteristic = null
+let gattServer = null
+
+/**
+ * De kanalen waarover deze printers ESC/POS aannemen, in de volgorde waarin
+ * ze het vaakst kloppen. Welk kanaal het is, zegt geen enkele eigenschap in
+ * de dump betrouwbaar: dat blijkt alleen uit wat er uit de printer komt.
+ */
+const ESCPOS_KANALEN = [
+  { naam: '1', service: '000018f0-0000-1000-8000-00805f9b34fb', write: '00002af1-0000-1000-8000-00805f9b34fb' },
+  { naam: '2', service: '0000ff00-0000-1000-8000-00805f9b34fb', write: '0000ff02-0000-1000-8000-00805f9b34fb' },
+  { naam: '3', service: '0000ff00-0000-1000-8000-00805f9b34fb', write: '0000ff01-0000-1000-8000-00805f9b34fb' },
+  { naam: '4', service: 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', write: 'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f' },
+]
 
 async function probe(filterOnService) {
   lines = []
@@ -98,6 +116,7 @@ async function probe(filterOnService) {
     log('Id: ' + device.id)
 
     const server = await device.gatt.connect()
+    gattServer = server
     log('Verbonden.')
 
     const services = await server.getPrimaryServices()
@@ -132,6 +151,7 @@ async function probe(filterOnService) {
       : 'GEEN service ae30. Het protocol uit sectie 9.2 klopt hier waarschijnlijk niet. '
         + 'Kopieer deze dump en stop met de implementatie.')
     document.getElementById('feed').disabled = writeCharacteristic == null
+    document.getElementById('escpos').disabled = false
   } catch (e) {
     log('Fout: ' + e)
   }
@@ -167,6 +187,81 @@ document.getElementById('feed').onclick = async () => {
     log('Papierdoorvoer mislukt: ' + e)
   }
 }
+/* --------------------------------------------------------------------------
+ * ESC/POS-test. Elk kanaal krijgt zijn eigen nummer op papier, plus een zwart
+ * balkje in rasterstand (GS v 0). Wat er uit de printer komt, zegt allebei:
+ * welk kanaal luistert, en of hij ook plaatjes aankan — en dat laatste is wat
+ * een QR-label nodig heeft.
+ * ----------------------------------------------------------------------- */
+
+const PRINT_BREEDTE_BYTES = 48 // 384 punten, 58 mm bij 203 dpi
+
+function tekstBytes(text) {
+  return [...text].map((c) => c.charCodeAt(0) & 0xff)
+}
+
+/** GS v 0: rasterafdruk, MSB eerst (bit 7 is de linkerpunt). */
+function rasterBalk(hoogte) {
+  const data = []
+  for (let y = 0; y < hoogte; y++) {
+    for (let x = 0; x < PRINT_BREEDTE_BYTES; x++) {
+      // Blokjespatroon: een egale balk zou ook uit een storing kunnen komen.
+      data.push((Math.floor(y / 8) + Math.floor(x / 3)) % 2 ? 0xff : 0x00)
+    }
+  }
+  return [
+    0x1d, 0x76, 0x30, 0x00,
+    PRINT_BREEDTE_BYTES & 0xff, (PRINT_BREEDTE_BYTES >> 8) & 0xff,
+    hoogte & 0xff, (hoogte >> 8) & 0xff,
+    ...data,
+  ]
+}
+
+function testBon(nummer) {
+  return new Uint8Array([
+    0x1b, 0x40,                     // ESC @  — printer terug op nul
+    0x1b, 0x61, 0x01,               // ESC a 1 — gecentreerd
+    ...tekstBytes('FIETSWERK KANAAL ' + nummer), 0x0a,
+    ...rasterBalk(24),
+    0x0a, 0x0a, 0x0a,
+  ])
+}
+
+/**
+ * Deze printer geeft geen eigenschappen op (de dump toont overal een lege
+ * lijst), dus welke van de twee schrijfwijzen mag, blijkt pas bij het
+ * proberen. Eerst zonder antwoord — dat is wat printers doorgaans willen —
+ * en anders met.
+ */
+async function schrijf(characteristic, stuk) {
+  try { await characteristic.writeValueWithoutResponse(stuk) }
+  catch { await characteristic.writeValue(stuk) }
+}
+
+async function schrijfInStukjes(characteristic, bytes) {
+  for (let i = 0; i < bytes.length; i += 128) {
+    await schrijf(characteristic, bytes.slice(i, i + 128))
+    await new Promise((r) => setTimeout(r, 30))
+  }
+}
+
+document.getElementById('escpos').onclick = async () => {
+  if (!gattServer) { log('Eerst verbinden.'); return }
+  log('')
+  log('ESC/POS-test:')
+  for (const kanaal of ESCPOS_KANALEN) {
+    try {
+      const service = await gattServer.getPrimaryService(kanaal.service)
+      const c = await service.getCharacteristic(kanaal.write)
+      await schrijfInStukjes(c, testBon(kanaal.naam))
+      log('  kanaal ' + kanaal.naam + ' (' + kanaal.write.slice(4, 8) + '): verstuurd zonder fout')
+    } catch (e) {
+      log('  kanaal ' + kanaal.naam + ' (' + kanaal.write.slice(4, 8) + '): ' + e)
+    }
+  }
+  log('Kijk op de bon: welk nummer staat erop, en staat het blokjespatroon eronder?')
+}
+
 document.getElementById('copy').onclick = async () => {
   try { await navigator.clipboard.writeText(lines.join('\n')); log('(dump gekopieerd)') }
   catch { log('(kopiëren niet toegestaan, selecteer de tekst met de hand)') }

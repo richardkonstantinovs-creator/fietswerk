@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import * as db from '../db'
-import { crc8, packet } from '../printer/catPrinter'
+import { BYTES_PER_ROW, papierDoorvoeren, rasterBlok, spiegelBits } from '../printer/escpos'
 import { formatTagCode, isTagCode, nextWorkOrderNumber, normalizeTagCode } from '../code'
 import { laborCents, money, parseMoneyToCents, toE164NL, vatOf } from '../format'
 import { canTransition, primaryTransition } from '../workflow'
@@ -185,17 +185,25 @@ describe('QR-code', () => {
 })
 
 describe('printerprotocol', () => {
-  it('bouwt een pakket volgens sectie 9.2', () => {
-    const p = packet(0xa1, [30, 0])
-    expect([...p.slice(0, 6)]).toEqual([0x51, 0x78, 0xa1, 0x00, 0x02, 0x00])
-    expect(p[p.length - 1]).toBe(0xff)
-    expect(p[p.length - 2]).toBe(crc8([30, 0]))
+  it('zet een rasterblok neer volgens GS v 0', () => {
+    const rows = [new Uint8Array(BYTES_PER_ROW), new Uint8Array(BYTES_PER_ROW)]
+    const blok = rasterBlok(rows)
+    expect([...blok.slice(0, 8)]).toEqual([0x1d, 0x76, 0x30, 0x00, 48, 0x00, 2, 0x00])
+    expect(blok.length).toBe(8 + 2 * BYTES_PER_ROW)
   })
 
-  it('rekent crc8 met polynoom 0x07', () => {
-    expect(crc8([0x00])).toBe(0x00)
-    expect(crc8([0x01])).toBe(0x07)
-    // Standaard controlewaarde voor CRC-8 met polynoom 0x07: "123456789" -> 0xF4.
-    expect(crc8([...'123456789'].map((c) => c.charCodeAt(0)))).toBe(0xf4)
+  it('spiegelt de bits, want ESC/POS zet bit 7 links', () => {
+    // Het label uit render.ts zet bit 0 links (sectie 9.2). Zonder spiegelen
+    // komt elke regel omgekeerd uit de printer en is de QR onleesbaar.
+    expect([...spiegelBits(new Uint8Array([0x01]))]).toEqual([0x80])
+    expect([...spiegelBits(new Uint8Array([0x80]))]).toEqual([0x01])
+    expect([...spiegelBits(new Uint8Array([0b1010_0000]))]).toEqual([0b0000_0101])
+    expect([...spiegelBits(new Uint8Array([0xff, 0x00]))]).toEqual([0xff, 0x00])
+  })
+
+  it('voert papier door in stukjes van hoogstens 255 punten', () => {
+    expect([...papierDoorvoeren(60)]).toEqual([0x1b, 0x4a, 60])
+    expect([...papierDoorvoeren(300)]).toEqual([0x1b, 0x4a, 255, 0x1b, 0x4a, 45])
+    expect(papierDoorvoeren(0).length).toBe(0)
   })
 })

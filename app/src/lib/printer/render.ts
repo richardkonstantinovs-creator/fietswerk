@@ -14,12 +14,15 @@ export interface LabelContent {
   qrText: string
   /** De code zoals een mens hem overtypt, bijvoorbeeld W7K-3QM. */
   code: string
+  /** Hoogstens drie regels onder de code; wat erna komt, drukt niet af. */
   lines: string[]
-  /** Regel onderaan: winkelnaam en telefoon. */
-  footer: string
-  /** Extra regel boven de voettekst, bijvoorbeeld "Akkoord tot: € 80,00". */
-  note?: string
 }
+
+/**
+ * Meer dan drie regels maakt het label langer dan het stuur breed is, en de
+ * onderste regels leest niemand meer: wie het label pakt, leest de code.
+ */
+const MAX_REGELS = 3
 
 const MODULE_PX = 8
 
@@ -34,6 +37,7 @@ export function renderLabel(content: LabelContent): HTMLCanvasElement {
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.fillStyle = '#000000'
   ctx.textBaseline = 'top'
+  ctx.textAlign = 'center'
 
   let y = 16
 
@@ -47,29 +51,18 @@ export function renderLabel(content: LabelContent): HTMLCanvasElement {
   // De code groot eronder: op een vervaagd label is dit de hoofdweg,
   // niet de terugvaloptie (sectie 8.2).
   ctx.font = 'bold 56px "Arial Black", Arial, sans-serif'
-  ctx.textAlign = 'center'
   ctx.fillText(formatTagCode(content.code), PRINT_WIDTH / 2, y)
   y += 66
 
-  ctx.textAlign = 'left'
+  // Alles op het label staat gecentreerd, ook de regels onder de code: een
+  // smal strookje leest als een kolom, niet als een bladzijde.
   ctx.font = 'bold 28px Arial, sans-serif'
-  for (const line of content.lines) {
-    if (!line) continue
-    ctx.fillText(clip(ctx, line, PRINT_WIDTH - 32), 16, y)
+  for (const line of content.lines.filter(Boolean).slice(0, MAX_REGELS)) {
+    ctx.fillText(clip(ctx, line, PRINT_WIDTH - 32), PRINT_WIDTH / 2, y)
     y += 34
   }
 
-  if (content.note) {
-    y += 6
-    ctx.font = 'bold 30px Arial, sans-serif'
-    ctx.fillText(clip(ctx, content.note, PRINT_WIDTH - 32), 16, y)
-    y += 38
-  }
-
   y += 8
-  ctx.font = 'bold 24px Arial, sans-serif'
-  ctx.fillText(clip(ctx, content.footer, PRINT_WIDTH - 32), 16, y)
-  y += 40
 
   // Bijsnijden op de werkelijke hoogte.
   const out = document.createElement('canvas')

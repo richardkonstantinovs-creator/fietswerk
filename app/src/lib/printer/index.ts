@@ -1,10 +1,10 @@
-import { CatPrinter } from './catPrinter'
+import { EscPosPrinter } from './escpos'
 import { canvasToRows, renderLabel } from './render'
 import type { LabelContent } from './render'
 import type { PrintJob } from '../types'
 import * as db from '../db'
 import { tNL } from '../../i18n'
-import { date, money } from '../format'
+import { date } from '../format'
 import { publicUrl, tagUrl } from '../code'
 
 /**
@@ -18,15 +18,29 @@ export type PrinterStatus = 'unsupported' | 'disconnected' | 'connecting' | 'rea
 type Listener = () => void
 
 class PrinterManager {
-  private printer = new CatPrinter({
+  private printer = new EscPosPrinter({
     onStatus: (s) => this.setStatus(s === 'connected' ? 'ready' : 'disconnected'),
   })
 
   private listeners = new Set<Listener>()
-  private _status: PrinterStatus = CatPrinter.supported() ? 'disconnected' : 'unsupported'
+  private _status: PrinterStatus = EscPosPrinter.supported() ? 'disconnected' : 'unsupported'
   private _error: string | null = null
   private version = 0
   private draining = false
+
+  /**
+   * Een label dat in de wachtrij komt terwijl de printer al klaarstaat, moet
+   * er meteen uit. Zonder deze regel wachtte het tot de printer toevallig
+   * opnieuw verbond: op het scherm stond "1 label wacht op de printer" en er
+   * gebeurde niets, terwijl de printer er klaar naast stond.
+   */
+  constructor() {
+    // De printer leeft zolang de app leeft; afmelden hoeft daarom niet.
+    db.subscribe(() => {
+      if (this._status === 'ready' && db.pendingPrintJobs().length > 0) void this.drain()
+    })
+  }
+
 
   subscribe = (l: Listener) => {
     this.listeners.add(l)
@@ -123,6 +137,11 @@ function errorKey(e: unknown): string {
 /**
  * Inhoud van het label. Altijd Nederlands, ook als het scherm op Engels staat
  * (sectie 10.1): de klant en de monteur lezen dit, niet de ontwikkelaar.
+ *
+ * Drie regels onder de code, en de datum is de laatste. De klacht, het
+ * afgesproken bedrag en de winkelnaam stonden er eerst ook op; die maakten het
+ * strookje langer dan het stuur breed is. Het afgesproken bedrag staat in de
+ * werkbon, waar het bij het bellen ook echt gelezen wordt.
  */
 export function labelForJob(job: PrintJob): LabelContent | null {
   const woid = job.payload.work_order_id as string | undefined
@@ -131,30 +150,17 @@ export function labelForJob(job: PrintJob): LabelContent | null {
   if (!wo || !wo.tag_code) return null
   const customer = db.customer(wo.customer_id)
   const bike = db.bike(wo.bike_id)
-  const s = db.settings()
-  const footer = `${s.shop_name}  ${s.phone}`
-  const lines = [
-    `${bike?.brand ?? ''} ${bike?.model ?? ''}`.trim(),
-    customer ? `Fam. ${customer.last_name}` : '',
-    date(wo.intake_at),
-    wo.complaint,
-  ]
+  const fiets = `${bike?.brand ?? ''} ${bike?.model ?? ''}`.trim()
+  const familie = customer ? `Fam. ${customer.last_name}` : ''
 
   if (job.kind === 'accu_label') {
     // Het label op de accu wijst naar dezelfde werkbon als dat op het stuur.
+    // "ACCU" staat op de plek van de fiets: op de accu zelf staat het merk al.
     const label = db.batteryTag(wo.id)
-    const code = label?.code ?? wo.tag_code
     return {
-      qrText: tagUrl(code),
-      code,
-      lines: [
-        'ACCU',
-        `${bike?.brand ?? ''} ${bike?.model ?? ''}`.trim(),
-        customer ? `Fam. ${customer.last_name}` : '',
-        bike?.battery_serial ?? '',
-        date(wo.intake_at),
-      ],
-      footer,
+      qrText: tagUrl(label?.code ?? wo.tag_code),
+      code: label?.code ?? wo.tag_code,
+      lines: ['ACCU', familie, date(wo.intake_at)],
     }
   }
 
@@ -162,22 +168,14 @@ export function labelForJob(job: PrintJob): LabelContent | null {
     return {
       qrText: publicUrl(wo.public_token),
       code: wo.tag_code,
-      lines: [...lines, 'Volg de status van uw fiets', 'met deze QR-code'],
-      note: wo.approved_limit_cents != null
-        ? `Akkoord tot: ${money(wo.approved_limit_cents)}`
-        : undefined,
-      footer,
+      lines: [fiets, familie, date(wo.intake_at)],
     }
   }
 
   return {
     qrText: tagUrl(wo.tag_code),
     code: wo.tag_code,
-    lines,
-    note: wo.approved_limit_cents != null
-      ? `Akkoord tot: ${money(wo.approved_limit_cents)}`
-      : undefined,
-    footer,
+    lines: [fiets, familie, date(wo.intake_at)],
   }
 }
 
