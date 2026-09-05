@@ -187,6 +187,7 @@ const ZIJBALK: { to: string; key: string; icon: () => ReactNode }[] = [
   { to: '/rooster', key: 'nav.rooster', icon: IconRooster },
   { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
   { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
+  { to: '/schrift', key: 'nav.schrift', icon: IconSchrift },
 ]
 
 /** Alles wat niet in de onderbalk past. Eén lijst, één plek om aan te passen. */

@@ -46,6 +46,16 @@ describe('schermen renderen', () => {
     expect(render('/schrift')).toContain('Dit deel is voor de eigenaar')
   })
 
+  // Een scherm zonder knop bestaat niet. De onderbalk staat op de telefoon en
+  // de zijbalk op tablet en pc; wie alleen in het ene menu hangt, is op het
+  // andere apparaat onbereikbaar.
+  it('geeft elke bestemming in het menu ook een link in de schil', () => {
+    const html = render('/')
+    for (const pad of ['/onderdelen', '/klanten', '/rooster', '/rapporten', '/schrift']) {
+      expect(html).toContain(`href="${pad}"`)
+    }
+  })
+
   it('laat de monteur het rooster lezen maar niet veranderen', () => {
     db.login('usr_monteur', '2222')
     const html = render('/rooster')
