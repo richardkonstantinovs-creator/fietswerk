@@ -20,9 +20,12 @@ import Bestelling from './screens/Bestelling'
 import Occasions from './screens/Occasions'
 import Occasion from './screens/Occasion'
 import Inkoop from './screens/Inkoop'
-import Abonnementen from './screens/Abonnementen'
-import Accus from './screens/Accus'
 import Rapporten from './screens/Rapporten'
+import Rooster from './screens/Rooster'
+import Uren from './screens/Uren'
+import Beschikbaarheid from './screens/Beschikbaarheid'
+import Klok from './screens/Klok'
+import Medewerkers from './screens/Medewerkers'
 import Factuur from './screens/Factuur'
 import Inkoopverklaring from './screens/Inkoopverklaring'
 
@@ -84,9 +87,12 @@ export default function App() {
                 <Route path="/occasions" element={<Occasions />} />
                 <Route path="/occasions/inkoop" element={<Inkoop />} />
                 <Route path="/occasion/:id" element={<Occasion />} />
-                <Route path="/abonnementen" element={<Abonnementen />} />
-                <Route path="/accus" element={<Accus />} />
                 <Route path="/rapporten" element={<Rapporten />} />
+                <Route path="/rooster" element={<Rooster />} />
+                <Route path="/uren" element={<Uren />} />
+                <Route path="/beschikbaarheid" element={<Beschikbaarheid />} />
+                <Route path="/klok" element={<Klok />} />
+                <Route path="/medewerkers" element={<Medewerkers />} />
                 <Route path="/overzicht" element={<Overzicht />} />
                 <Route path="/scan" element={<Scan />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

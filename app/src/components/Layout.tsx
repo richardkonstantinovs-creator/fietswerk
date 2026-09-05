@@ -183,24 +183,34 @@ const ZIJBALK: { to: string; key: string; icon: () => ReactNode }[] = [
   { to: '/onderdelen', key: 'nav.onderdelen', icon: IconOnderdelen },
   { to: '/bestellingen', key: 'bestellingen.title', icon: IconBestellingen },
   { to: '/occasions', key: 'nav.occasions', icon: IconOccasions },
-  { to: '/accus', key: 'accus.title', icon: IconAccus },
   { to: '/klanten', key: 'nav.klanten', icon: IconKlanten },
-  { to: '/abonnementen', key: 'nav.abonnementen', icon: IconAbonnementen },
+  { to: '/rooster', key: 'nav.rooster', icon: IconRooster },
   { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
   { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
 ]
 
 /** Alles wat niet in de onderbalk past. Eén lijst, één plek om aan te passen. */
 const MEER = [
+  { to: '/klok', key: 'nav.klok', icon: IconKlok },
+  { to: '/rooster', key: 'nav.rooster', icon: IconRooster },
+  { to: '/uren', key: 'nav.uren', icon: IconUren },
+  { to: '/beschikbaarheid', key: 'nav.beschikbaarheid', icon: IconBeschikbaarheid },
+  { to: '/medewerkers', key: 'nav.team', icon: IconTeam },
   { to: '/onderdelen', key: 'nav.onderdelen', icon: IconOnderdelen },
   { to: '/klanten', key: 'nav.klanten', icon: IconKlanten },
   { to: '/occasions', key: 'nav.occasions', icon: IconOccasions },
   { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
   { to: '/bestellingen', key: 'bestellingen.title', icon: IconBestellingen },
-  { to: '/abonnementen', key: 'abonnementen.title', icon: IconAbonnementen },
-  { to: '/accus', key: 'accus.title', icon: IconAccus },
   { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
 ]
+
+/**
+ * Schermen die breder mogen zijn dan een bladzijde tekst. Voor lezen is
+ * max-w-3xl de juiste maat — langere regels leest niemand meer. Maar het
+ * rooster is geen tekst: zeven dagen naast elkaar moeten bij het openen alle
+ * zeven in beeld staan, anders scrolt de eigenaar elke keer naar zaterdag.
+ */
+const BREED = ['/rooster']
 
 /**
  * Een kaart hoort bij de lijst waar hij uit komt (sectie 2.2: hoofdscherm ->
@@ -213,6 +223,7 @@ const SECTIE_KAARTEN: Record<string, string[]> = {
   '/klanten': ['/klant/'],
   '/occasions': ['/occasion/'],
   '/bestellingen': ['/bestelling/'],
+  '/rooster': ['/uren', '/beschikbaarheid', '/medewerkers'],
 }
 
 function isActive(pathname: string, to: string): boolean {
@@ -222,6 +233,52 @@ function isActive(pathname: string, to: string): boolean {
 }
 
 /* Pictogrammen staan nooit alleen: er hoort altijd tekst onder (sectie 2.2). */
+function IconTeam() {
+  return (
+    <svg {...SVG}>
+      <circle cx="9" cy="8.5" r="3.5" />
+      <path d="M3 20a6 6 0 0 1 12 0M16.5 5.5a3.5 3.5 0 0 1 0 6M17 14.5a6 6 0 0 1 4 5.5" />
+    </svg>
+  )
+}
+
+function IconRooster() {
+  return (
+    <svg {...SVG}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17.5h3M14 14h2" />
+    </svg>
+  )
+}
+
+function IconUren() {
+  return (
+    <svg {...SVG}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7v5.5l3.5 2" />
+    </svg>
+  )
+}
+
+/* Golven zoals op een contactloze betaalautomaat: dat gebaar kent iedereen. */
+function IconKlok() {
+  return (
+    <svg {...SVG}>
+      <rect x="3" y="4" width="9" height="16" rx="2" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" />
+    </svg>
+  )
+}
+
+function IconBeschikbaarheid() {
+  return (
+    <svg {...SVG}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4M8.5 15l2.5 2.5 4.5-5" />
+    </svg>
+  )
+}
+
 function IconWerkplaats() {
   return (
     <svg {...SVG}>
@@ -302,24 +359,6 @@ function IconBestellingen() {
       <path d="M8 4h8l1 3H7z" />
       <path d="M5.5 7h13l-1 13h-11z" />
       <path d="M12 11v5M9.5 13.5 12 16l2.5-2.5" />
-    </svg>
-  )
-}
-
-function IconAbonnementen() {
-  return (
-    <svg {...SVG}>
-      <rect x="3.5" y="5.5" width="17" height="15" rx="2" />
-      <path d="M3.5 10h17M8 3.5v4M16 3.5v4M9 15l2 2 4-4" />
-    </svg>
-  )
-}
-
-function IconAccus() {
-  return (
-    <svg {...SVG}>
-      <rect x="2.5" y="7.5" width="16" height="9" rx="2" />
-      <path d="M21.5 11v2M6 10.5v3M10 10.5v3" />
     </svg>
   )
 }
@@ -465,8 +504,13 @@ function SidebarStatus() {
 
 /**
  * De zijbalk staat vast aan de linkerkant en blijft staan waar hij staat, ook
- * als het scherm eronder doorscrollt. Alle tien de bestemmingen passen erin
- * zonder te scrollen: tien regels van 56 px met 12 px ertussen (sectie 2.2).
+ * als het scherm eronder doorscrollt. Alle negen bestemmingen passen erin
+ * zonder te scrollen: negen regels van 56 px met 12 px ertussen (sectie 2.2).
+ *
+ * Negen en niet twaalf: rooster, uren en beschikbaarheid zijn één onderwerp en
+ * delen daarom één regel. Wie op "Rooster" staat, springt met de tabrij boven
+ * het scherm naar de andere twee. Een vierde regel erbij en er moet gescrold
+ * worden, en dan is de zijbalk geen overzicht meer.
  *
  * Onderin staat wat de hele dag meekijkt: de staat van printer en opslag, en
  * wie er werkt met de weg naar de instellingen. Dat is één blok van twee
@@ -594,6 +638,7 @@ function MeerSheet({ onClose, metNav }: { onClose: () => void; metNav: boolean }
 
 export function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [sheet, setSheet] = useState<'meer' | 'instellingen' | null>(null)
 
   // Balie-scanner werkt overal in de app (sectie 8.5).
@@ -619,7 +664,14 @@ export function Layout({ children }: { children: ReactNode }) {
             boven elk scherm een regel voor iets wat bijna altijd goed is. */}
         <PhoneHeader />
 
-        <main className="flex-1 mx-auto w-full max-w-3xl px-4 sm:px-8 pb-app">{children}</main>
+        <main
+          className={[
+            'flex-1 mx-auto w-full px-4 sm:px-8 pb-app',
+            BREED.includes(location.pathname) ? 'max-w-[1400px]' : 'max-w-3xl',
+          ].join(' ')}
+        >
+          {children}
+        </main>
       </div>
 
       <TabBar onMeer={() => { setSheet('meer') }} meerOpen={sheet === 'meer'} />

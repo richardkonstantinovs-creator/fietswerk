@@ -406,6 +406,77 @@ export interface Reminder {
   user_id: string | null
 }
 
+// ============================================ fase 3: rooster, uren en klokken
+
+/**
+ * Een geplande dienst. De dag is een kalenderdag in winkeltijd ('YYYY-MM-DD')
+ * en geen tijdstempel: een dienst van 9 tot 17 verschuift niet mee met de
+ * zomertijd en staat op de zaterdag waar de eigenaar hem neerzette.
+ */
+export interface Shift {
+  id: string
+  user_id: string
+  date: string
+  /** 'HH:MM' in winkeltijd. */
+  start: string
+  end: string
+  /** Geplande pauze; die telt niet mee in de geplande uren. */
+  break_minutes: number
+  note: string | null
+  created_at: string
+}
+
+export type AbsenceKind = 'vakantie' | 'ziek' | 'verlof'
+
+/** Vrij, ziek of vakantie. Blokkeert een dag in het rooster. */
+export interface Absence {
+  id: string
+  user_id: string
+  from_date: string
+  to_date: string
+  kind: AbsenceKind
+  note: string | null
+  created_at: string
+}
+
+/**
+ * Wat de medewerker zelf opgeeft: op deze dag kan ik wel of niet werken.
+ * Dit is een wens, geen dienst. Roosteren blijft van de eigenaar.
+ */
+export interface Availability {
+  id: string
+  user_id: string
+  date: string
+  can_work: boolean
+  /** Leeg = de hele dag; anders het venster waarin het kan. */
+  from_time: string | null
+  to_time: string | null
+  note: string | null
+  created_at: string
+}
+
+/** Hoe een uur in het systeem kwam. Handmatig is niet fout, maar wel anders. */
+export type ClockSource = 'nfc' | 'qr' | 'handmatig'
+
+/**
+ * Een gewerkte periode: binnen en weer buiten. Zolang clock_out leeg is,
+ * staat de medewerker nog in de winkel.
+ */
+export interface TimeEntry {
+  id: string
+  user_id: string
+  date: string
+  clock_in: string
+  clock_out: string | null
+  break_minutes: number
+  source: ClockSource
+  note: string | null
+  /** Wie het uur met de hand heeft rechtgezet. Zonder dit is achteraf niet te
+   *  zien of een uur geklokt is of ingetypt, en daar gaat loon overheen. */
+  edited_by: string | null
+  edited_at: string | null
+}
+
 export interface Database {
   version: number
   settings: Settings
@@ -433,4 +504,9 @@ export interface Database {
   service_contracts: ServiceContract[]
   battery_logs: BatteryLog[]
   reminders: Reminder[]
+  // fase 3
+  shifts: Shift[]
+  absences: Absence[]
+  availability: Availability[]
+  time_entries: TimeEntry[]
 }

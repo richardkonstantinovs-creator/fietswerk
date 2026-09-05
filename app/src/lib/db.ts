@@ -4,11 +4,13 @@ import type {
   PurchaseOrderLine, Reminder, ServiceContract, StockBike, StockMovement, Supplier,
   Tag, TagScan, User, WorkOrder, WorkOrderEvent, WorkOrderEventType, WorkOrderLine,
   WorkOrderStatus,
+  Absence, AbsenceKind, Availability, ClockSource, Role, Shift, TimeEntry,
 } from './types'
 import { buildSeed } from './seed'
 import { newPublicToken, newTagCode, nextWorkOrderNumber, normalizeTagCode } from './code'
 import { timestampsFor } from './workflow'
 import { addWorkingDays, vatOf } from './format'
+import { addDays, dayKey, entryMinutes, mondayOf, shiftMinutes, weekDays } from './rooster'
 
 /**
  * Fase 0 draait op de browser-opslag zodat de demo bij de eigenaar op tafel
@@ -19,7 +21,7 @@ import { addWorkingDays, vatOf } from './format'
 
 const KEY = 'fietswerk.db.v1'
 /** Bij een nieuwe versie wordt de demo opnieuw gezaaid; fase 0 heeft geen migraties. */
-const DB_VERSION = 2
+const DB_VERSION = 3
 const listeners = new Set<() => void>()
 
 let db: Database = load()
@@ -1234,4 +1236,569 @@ export function marginVatReport(fromIso: string, toIso: string) {
     vat += Math.round((margin * 21) / 121)
   }
   return { count: sold.length, gross_margin_cents: gross, vat_cents: vat }
+}
+
+// ==================================== fase 3: rooster, uren en klokken
+
+/**
+ * Wie er in het rooster staat. De eigenaar hoort erbij: in een winkel van
+ * deze maat staat hij zelf ook op zaterdag achter de toonbank.
+ */
+export function staff(): User[] {
+  return db.users.filter((u) => u.active)
+}
+
+export const staffMember = (uid: string) => db.users.find((u) => u.id === uid)
+
+// ------------------------------------------------------------------ rooster
+
+export function shiftsBetween(from: string, to: string): Shift[] {
+  return db.shifts
+    .filter((s) => s.date >= from && s.date <= to)
+    .sort((a, b) => (a.date === b.date ? a.start.localeCompare(b.start) : a.date.localeCompare(b.date)))
+}
+
+export function shiftsOn(userId: string, day: string): Shift[] {
+  return db.shifts
+    .filter((s) => s.user_id === userId && s.date === day)
+    .sort((a, b) => a.start.localeCompare(b.start))
+}
+
+export const shift = (sid: string) => db.shifts.find((s) => s.id === sid)
+
+export interface ShiftInput {
+  id?: string
+  user_id: string
+  date: string
+  start: string
+  end: string
+  break_minutes: number
+  note: string | null
+}
+
+export function saveShift(input: ShiftInput): Shift {
+  const existing = input.id ? db.shifts.find((s) => s.id === input.id) : undefined
+  if (existing) {
+    Object.assign(existing, {
+      user_id: input.user_id, date: input.date, start: input.start,
+      end: input.end, break_minutes: input.break_minutes, note: input.note,
+    })
+    track('shifts', 'update', { id: existing.id })
+    persist()
+    return existing
+  }
+  const created: Shift = {
+    id: id('shift'), user_id: input.user_id, date: input.date,
+    start: input.start, end: input.end, break_minutes: input.break_minutes,
+    note: input.note, created_at: now(),
+  }
+  db.shifts.push(created)
+  track('shifts', 'insert', { id: created.id })
+  persist()
+  return created
+}
+
+export function deleteShift(sid: string) {
+  db.shifts = db.shifts.filter((s) => s.id !== sid)
+  track('shifts', 'update', { id: sid })
+  persist()
+}
+
+/**
+ * Dezelfde dienst over meer dagen tegelijk: een rooster van vijf dagen zet je
+ * niet vijf keer met de hand neer.
+ *
+ * Een dag waar al een dienst staat wordt overgeslagen, net als bij het maken
+ * van een bestellijst: twee keer drukken mag nooit twee diensten opleveren.
+ * Geeft terug hoeveel diensten er echt bij zijn gekomen.
+ */
+export function repeatShift(input: ShiftInput, days: string[]): number {
+  let added = 0
+  for (const day of days) {
+    if (shiftsOn(input.user_id, day).length > 0) continue
+    saveShift({ ...input, id: undefined, date: day })
+    added += 1
+  }
+  return added
+}
+
+// ------------------------------------------------------ vrij, ziek, vakantie
+
+export function absencesBetween(from: string, to: string): Absence[] {
+  return db.absences
+    .filter((a) => a.from_date <= to && a.to_date >= from)
+    .sort((a, b) => a.from_date.localeCompare(b.from_date))
+}
+
+export function absenceOn(userId: string, day: string): Absence | undefined {
+  return db.absences.find((a) => a.user_id === userId && a.from_date <= day && a.to_date >= day)
+}
+
+export function saveAbsence(
+  userId: string, fromDate: string, toDate: string, kind: AbsenceKind, note: string | null,
+): Absence {
+  const created: Absence = {
+    id: id('afw'), user_id: userId,
+    from_date: fromDate <= toDate ? fromDate : toDate,
+    to_date: fromDate <= toDate ? toDate : fromDate,
+    kind, note, created_at: now(),
+  }
+  db.absences.push(created)
+  track('absences', 'insert', { id: created.id })
+  persist()
+  return created
+}
+
+export function deleteAbsence(aid: string) {
+  db.absences = db.absences.filter((a) => a.id !== aid)
+  track('absences', 'update', { id: aid })
+  persist()
+}
+
+// -------------------------------------------------------- eigen beschikbaarheid
+
+export function availabilityBetween(from: string, to: string): Availability[] {
+  return db.availability.filter((a) => a.date >= from && a.date <= to)
+}
+
+export function availabilityOn(userId: string, day: string): Availability | undefined {
+  return db.availability.find((a) => a.user_id === userId && a.date === day)
+}
+
+/**
+ * De medewerker geeft zelf op wanneer hij kan. Eén regel per dag: nog een keer
+ * opgeven overschrijft de vorige, anders staan er twee tegenstrijdige wensen
+ * en weet de eigenaar niet welke telt.
+ */
+export function setAvailability(
+  userId: string, day: string, canWork: boolean,
+  fromTime: string | null = null, toTime: string | null = null, note: string | null = null,
+): Availability {
+  const existing = availabilityOn(userId, day)
+  if (existing) {
+    Object.assign(existing, { can_work: canWork, from_time: fromTime, to_time: toTime, note })
+    track('availability', 'update', { id: existing.id })
+    persist()
+    return existing
+  }
+  const created: Availability = {
+    id: id('besch'), user_id: userId, date: day, can_work: canWork,
+    from_time: fromTime, to_time: toTime, note, created_at: now(),
+  }
+  db.availability.push(created)
+  track('availability', 'insert', { id: created.id })
+  persist()
+  return created
+}
+
+export function clearAvailability(userId: string, day: string) {
+  db.availability = db.availability.filter((a) => !(a.user_id === userId && a.date === day))
+  persist()
+}
+
+// ------------------------------------------------------------------- klokken
+
+/** Twee keer achter elkaar tegen de tag aan houden is één handeling, geen twee. */
+export const CLOCK_GUARD_SECONDS = 90
+
+/** Na zoveel uur is een openstaande registratie geen dienst meer maar een fout. */
+const FORGOTTEN_AFTER_HOURS = 14
+
+export function openEntry(userId: string): TimeEntry | undefined {
+  return db.time_entries.find((e) => e.user_id === userId && e.clock_out == null)
+}
+
+function hoursSince(iso: string): number {
+  return (Date.now() - new Date(iso).getTime()) / 3_600_000
+}
+
+/**
+ * Registraties die nooit zijn afgesloten. Iemand is naar huis gegaan zonder
+ * de tag aan te raken; het systeem mag dan niet zelf een eindtijd verzinnen,
+ * want daar gaat loon overheen. Ze komen op de urenstaat te staan met de
+ * vraag aan de eigenaar om ze recht te zetten.
+ */
+export function forgottenEntries(): TimeEntry[] {
+  return db.time_entries.filter((e) => e.clock_out == null && hoursSince(e.clock_in) > FORGOTTEN_AFTER_HOURS)
+}
+
+export type ClockResult = 'ingeklokt' | 'uitgeklokt' | 'genegeerd'
+
+export interface ClockOutcome {
+  result: ClockResult
+  entry: TimeEntry
+  /** De vorige dienst die niemand heeft afgesloten, als die er was. */
+  forgotten: TimeEntry | null
+}
+
+/**
+ * Eén handeling voor binnenkomen en weggaan (sectie 2.2: één knop, geen keuze
+ * uit twee). Staat er niets open, dan begint de dienst; staat er iets open,
+ * dan sluit hij. Een tweede aanraking binnen anderhalve minuut verandert niets:
+ * dat is dezelfde telefoon die nog een keer langs de tag ging.
+ */
+export function clockToggle(userId: string, source: ClockSource): ClockOutcome {
+  const open = openEntry(userId)
+
+  if (open && hoursSince(open.clock_in) > FORGOTTEN_AFTER_HOURS) {
+    // Gisteren vergeten uit te klokken. De oude registratie blijft open staan
+    // zodat de eigenaar hem ziet en rechtzet; vandaag begint gewoon opnieuw.
+    const entry = startEntry(userId, source)
+    return { result: 'ingeklokt', entry, forgotten: open }
+  }
+
+  if (open) {
+    if ((Date.now() - new Date(open.clock_in).getTime()) / 1000 < CLOCK_GUARD_SECONDS) {
+      return { result: 'genegeerd', entry: open, forgotten: null }
+    }
+    open.clock_out = now()
+    track('time_entries', 'update', { id: open.id })
+    persist()
+    return { result: 'uitgeklokt', entry: open, forgotten: null }
+  }
+
+  const last = db.time_entries
+    .filter((e) => e.user_id === userId && e.clock_out != null)
+    .sort((a, b) => (b.clock_out ?? '').localeCompare(a.clock_out ?? ''))[0]
+  if (last?.clock_out && (Date.now() - new Date(last.clock_out).getTime()) / 1000 < CLOCK_GUARD_SECONDS) {
+    return { result: 'genegeerd', entry: last, forgotten: null }
+  }
+
+  return { result: 'ingeklokt', entry: startEntry(userId, source), forgotten: null }
+}
+
+function startEntry(userId: string, source: ClockSource): TimeEntry {
+  const stamp = now()
+  const entry: TimeEntry = {
+    id: id('uur'), user_id: userId, date: dayKey(new Date(stamp)),
+    clock_in: stamp, clock_out: null, break_minutes: 0,
+    source, note: null, edited_by: null, edited_at: null,
+  }
+  db.time_entries.push(entry)
+  track('time_entries', 'insert', { id: entry.id })
+  persist()
+  return entry
+}
+
+export function entriesBetween(from: string, to: string): TimeEntry[] {
+  return db.time_entries
+    .filter((e) => e.date >= from && e.date <= to)
+    .sort((a, b) => a.clock_in.localeCompare(b.clock_in))
+}
+
+export function entriesOn(userId: string, day: string): TimeEntry[] {
+  return db.time_entries
+    .filter((e) => e.user_id === userId && e.date === day)
+    .sort((a, b) => a.clock_in.localeCompare(b.clock_in))
+}
+
+/** Een tijdstip op een kalenderdag omzetten naar een tijdstempel. */
+function stampOn(day: string, hhmm: string): string {
+  const [y, m, d] = day.split('-').map(Number)
+  const [h, min] = hhmm.split(':').map(Number)
+  return new Date(y, (m ?? 1) - 1, d ?? 1, h ?? 0, min ?? 0, 0, 0).toISOString()
+}
+
+export interface TimeEntryInput {
+  id?: string
+  user_id: string
+  date: string
+  /** 'HH:MM'; leeg laten kan niet, een uur zonder begin is geen uur. */
+  start: string
+  /** 'HH:MM' of leeg: dan staat de dienst nog open. */
+  end: string | null
+  break_minutes: number
+  note: string | null
+}
+
+/**
+ * Met de hand invoeren of rechtzetten. De telefoon was leeg, de tag deed het
+ * niet, of iemand vergat uit te klokken — zonder deze knop staat er een fout
+ * getal onder het loon en is er geen weg terug.
+ */
+export function saveTimeEntry(input: TimeEntryInput): TimeEntry {
+  const clockIn = stampOn(input.date, input.start)
+  let clockOut = input.end ? stampOn(input.date, input.end) : null
+  // Een dienst die over middernacht loopt eindigt de volgende dag.
+  if (clockOut && clockOut <= clockIn) clockOut = stampOn(addDays(input.date, 1), input.end as string)
+
+  const existing = input.id ? db.time_entries.find((e) => e.id === input.id) : undefined
+  if (existing) {
+    Object.assign(existing, {
+      user_id: input.user_id, date: input.date, clock_in: clockIn, clock_out: clockOut,
+      break_minutes: input.break_minutes, note: input.note,
+      edited_by: currentUser()?.id ?? null, edited_at: now(),
+    })
+    track('time_entries', 'update', { id: existing.id })
+    persist()
+    return existing
+  }
+  const created: TimeEntry = {
+    id: id('uur'), user_id: input.user_id, date: input.date,
+    clock_in: clockIn, clock_out: clockOut, break_minutes: input.break_minutes,
+    source: 'handmatig', note: input.note,
+    edited_by: currentUser()?.id ?? null, edited_at: now(),
+  }
+  db.time_entries.push(created)
+  track('time_entries', 'insert', { id: created.id })
+  persist()
+  return created
+}
+
+export function deleteTimeEntry(eid: string) {
+  db.time_entries = db.time_entries.filter((e) => e.id !== eid)
+  track('time_entries', 'update', { id: eid })
+  persist()
+}
+
+// -------------------------------------------------------------- optellen
+
+export interface PeriodTotals {
+  user: User
+  planned_minutes: number
+  worked_minutes: number
+  /** Feit min plan: positief is overwerk (de som die de eigenaar wilde zien). */
+  difference_minutes: number
+  open: boolean
+}
+
+/**
+ * Per medewerker optellen over een periode; de rij die op de urenstaat staat.
+ *
+ * Wie in deze periode heeft gewerkt hoort erbij, ook als hij inmiddels uit
+ * dienst is. Anders verdwijnt een zaterdaghulp die eind september weggaat van
+ * de urenstaat van september, terwijl hij die maand nog betaald moet krijgen.
+ */
+export function periodTotals(from: string, to: string): PeriodTotals[] {
+  const shifts = shiftsBetween(from, to)
+  const entries = entriesBetween(from, to)
+  const werkten = new Set([...shifts, ...entries].map((x) => x.user_id))
+  const rijen = [
+    ...staff(),
+    ...archivedStaff().filter((u) => werkten.has(u.id)),
+  ]
+  return rijen.map((user) => {
+    const planned = shifts.filter((s) => s.user_id === user.id).reduce((sum, s) => sum + shiftMinutes(s), 0)
+    const mine = entries.filter((e) => e.user_id === user.id)
+    const worked = mine.reduce((sum, e) => sum + entryMinutes(e), 0)
+    return {
+      user,
+      planned_minutes: planned,
+      worked_minutes: worked,
+      difference_minutes: worked - planned,
+      open: mine.some((e) => e.clock_out == null),
+    }
+  })
+}
+
+/** Wie staat er nu in de winkel? Dat is de vraag van de eigenaar om half tien. */
+export function whoIsIn(): { user: User; since: string }[] {
+  return db.time_entries
+    .filter((e) => e.clock_out == null && hoursSince(e.clock_in) <= FORGOTTEN_AFTER_HOURS)
+    .map((e) => ({ user: staffMember(e.user_id), since: e.clock_in }))
+    .filter((x): x is { user: User; since: string } => x.user != null)
+    .sort((a, b) => a.since.localeCompare(b.since))
+}
+
+/**
+ * Wie is er ingeroosterd maar nog niet binnen, terwijl zijn dienst al begonnen
+ * is? Dit is de enige plek waar de app uit zichzelf iets signaleert.
+ */
+export function expectedButAbsent(day: string = dayKey()): { user: User; start: string }[] {
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
+  const result: { user: User; start: string }[] = []
+  for (const s of shiftsBetween(day, day)) {
+    const start = s.start.split(':').map(Number)
+    if ((start[0] ?? 0) * 60 + (start[1] ?? 0) > nowMinutes) continue
+    if (absenceOn(s.user_id, day)) continue
+    if (entriesOn(s.user_id, day).length > 0) continue
+    const user = staffMember(s.user_id)
+    if (user) result.push({ user, start: s.start })
+  }
+  return result
+}
+
+/** De week waar het rooster standaard op opent. */
+export function currentWeek(): string {
+  return mondayOf(dayKey())
+}
+
+export { weekDays }
+
+// ------------------------------------------------------------------ export
+
+/**
+ * Urenstaat voor de boekhouder. Eén regel per gewerkte periode, plus de
+ * geplande uren van die dag ernaast, zodat overwerk zonder narekenen te zien
+ * is. Zelfde vorm als de factuurexport: puntkomma's, komma's in getallen,
+ * datums als dd-MM-yyyy (sectie 12.4).
+ */
+export function exportHoursCsv(from: string, to: string): string {
+  const header = [
+    'medewerker', 'rol', 'datum', 'van', 'tot', 'pauze_minuten',
+    'gewerkt_uren', 'gepland_uren', 'verschil_uren', 'bron', 'aangepast',
+  ]
+  const lines = [header.join(';')]
+  const hours = (minutes: number) => (Math.round((minutes / 60) * 100) / 100).toFixed(2).replace('.', ',')
+  const day = (key: string) => key.split('-').reverse().join('-')
+  const time = (iso: string | null) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+
+  for (const e of entriesBetween(from, to)) {
+    const user = staffMember(e.user_id)
+    const planned = shiftsOn(e.user_id, e.date).reduce((sum, s) => sum + shiftMinutes(s), 0)
+    // De geplande uren horen bij de dag, niet bij de registratie: staan er twee
+    // registraties op één dag, dan telt het plan maar één keer mee.
+    const first = entriesOn(e.user_id, e.date)[0]?.id === e.id
+    const worked = entryMinutes(e)
+    lines.push([
+      user?.name ?? '', user ? user.role : '', day(e.date),
+      time(e.clock_in), time(e.clock_out), String(e.break_minutes),
+      hours(worked), first ? hours(planned) : hours(0),
+      first ? hours(worked - planned) : hours(worked),
+      e.source, e.edited_by ? 'ja' : 'nee',
+    ].join(';'))
+  }
+  return lines.join('\r\n')
+}
+
+/**
+ * Een klokslag terugdraaien. Wie per ongeluk langs de tag loopt terwijl hij
+ * koffie haalt, moet dat binnen een paar tellen ongedaan kunnen maken zonder
+ * de eigenaar erbij te halen.
+ */
+export function undoClock(entryId: string) {
+  const entry = db.time_entries.find((e) => e.id === entryId)
+  if (!entry) return
+  if (entry.clock_out) {
+    entry.clock_out = null
+    track('time_entries', 'update', { id: entry.id })
+  } else {
+    db.time_entries = db.time_entries.filter((e) => e.id !== entryId)
+    track('time_entries', 'update', { id: entryId })
+  }
+  persist()
+}
+
+// -------------------------------------------------- medewerkers beheren
+
+/**
+ * Iemand in dienst nemen of laten gaan (fase 3). Dit hoort bij het rooster:
+ * een winkel waar de eigenaar zelf geen naam kan toevoegen, moet voor elke
+ * zaterdaghulp de bouwer bellen.
+ */
+
+export type StaffProblem = 'naam_leeg' | 'pin_ongeldig' | 'pin_bezet' | 'laatste_eigenaar' | 'jijzelf'
+
+export interface StaffInput {
+  id?: string
+  name: string
+  role: Role
+  pin_code: string
+}
+
+/**
+ * Controleert wat er misgaat vóór er iets verandert. Twee mensen met dezelfde
+ * pincode kunnen niet: dan logt de een in als de ander en staan de uren van
+ * de verkeerde onder het loon.
+ */
+export function checkStaff(input: StaffInput): StaffProblem | null {
+  if (input.name.trim() === '') return 'naam_leeg'
+  if (!/^\d{4}$/.test(input.pin_code)) return 'pin_ongeldig'
+  if (db.users.some((u) => u.pin_code === input.pin_code && u.id !== input.id)) return 'pin_bezet'
+  return null
+}
+
+export function saveStaff(input: StaffInput): User | StaffProblem {
+  const problem = checkStaff(input)
+  if (problem) return problem
+
+  const existing = input.id ? db.users.find((u) => u.id === input.id) : undefined
+  if (existing) {
+    // De laatste eigenaar mag zichzelf niet degraderen: dan kan niemand meer
+    // bij de uren, de omzet en dit scherm.
+    if (existing.role === 'owner' && input.role !== 'owner' && activeOwners().length <= 1) {
+      return 'laatste_eigenaar'
+    }
+    Object.assign(existing, {
+      name: input.name.trim(), role: input.role, pin_code: input.pin_code,
+    })
+    track('users', 'update', { id: existing.id })
+    persist()
+    return existing
+  }
+
+  const created: User = {
+    id: id('usr'), name: input.name.trim(), role: input.role,
+    pin_code: input.pin_code, ui_language: 'nl', active: true,
+  }
+  db.users.push(created)
+  track('users', 'insert', { id: created.id })
+  persist()
+  return created
+}
+
+const activeOwners = () => db.users.filter((u) => u.active && u.role === 'owner')
+
+/** Medewerkers die uit dienst zijn; hun uren blijven bestaan. */
+export function archivedStaff(): User[] {
+  return db.users.filter((u) => !u.active)
+}
+
+/**
+ * Uit dienst. Geen wissen: de gewerkte uren van vorige maand moeten op de
+ * urenstaat blijven staan, want daar is loon over betaald. De naam verdwijnt
+ * uit het rooster, uit de inlogkeuze en uit de urenstaat van nieuwe periodes.
+ *
+ * Twee dingen kunnen niet: jezelf uitzetten (dan sta je buiten en kan niemand
+ * je terugzetten) en de laatste eigenaar uitzetten.
+ */
+export function deactivateStaff(uid: string): StaffProblem | null {
+  const user = db.users.find((u) => u.id === uid)
+  if (!user) return null
+  if (uid === currentUserId()) return 'jijzelf'
+  if (user.role === 'owner' && activeOwners().length <= 1) return 'laatste_eigenaar'
+  user.active = false
+  track('users', 'update', { id: uid })
+  persist()
+  return null
+}
+
+export function reactivateStaff(uid: string) {
+  const user = db.users.find((u) => u.id === uid)
+  if (!user) return
+  user.active = true
+  track('users', 'update', { id: uid })
+  persist()
+}
+
+/** Wat er van iemand in het systeem staat; bepaalt of hij echt weg kan. */
+export function staffHistory(uid: string): { shifts: number; entries: number; wishes: number } {
+  return {
+    shifts: db.shifts.filter((s) => s.user_id === uid).length,
+    entries: db.time_entries.filter((e) => e.user_id === uid).length,
+    wishes: db.availability.filter((a) => a.user_id === uid).length,
+  }
+}
+
+/**
+ * Echt weghalen. Mag alleen als er geen enkel uur en geen enkele dienst aan
+ * hangt — een naam die verkeerd is ingetypt kan zo weg, iemand die drie
+ * maanden heeft gewerkt niet.
+ */
+export function deleteStaff(uid: string): boolean {
+  const history = staffHistory(uid)
+  if (history.shifts + history.entries + history.wishes > 0) return false
+  if (uid === currentUserId()) return false
+  const user = db.users.find((u) => u.id === uid)
+  if (user?.role === 'owner' && activeOwners().length <= 1) return false
+
+  db.users = db.users.filter((u) => u.id !== uid)
+  db.absences = db.absences.filter((a) => a.user_id !== uid)
+  track('users', 'update', { id: uid })
+  persist()
+  return true
 }

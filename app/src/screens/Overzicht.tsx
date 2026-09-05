@@ -5,6 +5,7 @@ import * as db from '../lib/db'
 import { useDbVersion } from '../lib/useDb'
 import { daysSince, minutesDisplay, money } from '../lib/format'
 import { isOpen, statusSince, STUCK_DAYS_OWNER } from '../lib/workflow'
+import { clockTime } from '../lib/rooster'
 import { useT } from '../i18n'
 import { Button, Card, Confirm, SectionTitle } from '../components/ui'
 
@@ -54,6 +55,8 @@ export default function Overzicht() {
   const waitingParts = open.filter((w) => w.status === 'wacht_op_onderdeel')
   const waitingQuotes = open.filter((w) => w.status === 'wacht_op_akkoord')
   const lowParts = db.partsBelowMin().length
+  const binnen = db.whoIsIn()
+  const verwacht = db.expectedButAbsent()
 
   return (
     <div>
@@ -110,6 +113,33 @@ export default function Overzicht() {
           })}
         </>
       )}
+
+      {/* Wie is er vandaag? Dat is de vraag van half tien, en tot nu toe stond
+          het antwoord op een briefje bij de koffie (fase 3). */}
+      <SectionTitle>{t('overzicht.staff_today')}</SectionTitle>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Card>
+          <p className="font-semibold mb-2">{t('overzicht.inside')}</p>
+          {binnen.length === 0 && <p className="text-muted">{t('overzicht.nobody_in')}</p>}
+          {binnen.map((x) => (
+            <p key={x.user.id}>
+              {x.user.name} — {t('overzicht.since', { time: clockTime(x.since) })}
+            </p>
+          ))}
+        </Card>
+        <Card>
+          <p className="font-semibold mb-2">{t('overzicht.expected')}</p>
+          {verwacht.length === 0 && <p className="text-muted">{t('overzicht.nobody_missing')}</p>}
+          {verwacht.map((x) => (
+            <p key={x.user.id} className="text-danger font-semibold">
+              {x.user.name} — {t('overzicht.since', { time: x.start })}
+            </p>
+          ))}
+        </Card>
+      </div>
+      <div className="mt-3">
+        <Button full onClick={() => navigate('/rooster')}>{t('overzicht.to_rooster')}</Button>
+      </div>
 
       <SectionTitle>{t('overzicht.reset')}</SectionTitle>
       <Button variant="danger" full onClick={() => setResetting(true)}>{t('overzicht.reset')}</Button>

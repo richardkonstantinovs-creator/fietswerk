@@ -41,6 +41,22 @@ describe('schermen renderen', () => {
     expect(render('/rapporten')).toContain('Dit deel is voor de eigenaar')
   })
 
+  it('laat de monteur het rooster lezen maar niet veranderen', () => {
+    db.login('usr_monteur', '2222')
+    const html = render('/rooster')
+    // Zijn eigen dienst staat er; de knop om er een neer te zetten niet.
+    expect(html).toContain('Sanne Dijkstra')
+    expect(html).not.toContain('Dienst toevoegen voor')
+    expect(html).not.toContain('Vakantie, ziek of vrij')
+    // Wie er in dienst is, gaat hem niet aan.
+    expect(render('/medewerkers')).toContain('Dit deel is voor de eigenaar')
+    // En op de urenstaat ziet hij zijn eigen uren, niet die van de rest.
+    const uren = render('/uren')
+    expect(uren).toContain('Sanne Dijkstra')
+    expect(uren).not.toContain('Douwe Bos')
+    expect(uren).not.toContain('Urenstaat downloaden')
+  })
+
   const paden = (): Array<[string, string]> => {
     const wo = db.data().work_orders.find((w) => w.status === 'wachtrij')!
     const wachtend = db.data().work_orders.find((w) => w.status === 'wacht_op_onderdeel')!
@@ -63,9 +79,12 @@ describe('schermen renderen', () => {
       ['/occasions', 'Occasions'],
       [`/occasion/${occ.id}`, 'Echte marge'],
       ['/occasions/inkoop', 'stopheling'],
-      ['/abonnementen', 'Onderhoudsabonnementen'],
-      ['/accus', 'in de winkel en op de lader'],
       ['/rapporten', 'Rapporten'],
+      ['/rooster', 'Wie werkt wanneer'],
+      ['/uren', 'Overwerk'],
+      ['/beschikbaarheid', 'Beschikbaarheid'],
+      ['/klok', 'Klokken'],
+      ['/medewerkers', 'Wie er in dienst is'],
       ['/overzicht', 'Overzicht'],
       ['/scan', 'Label scannen'],
       [`/factuur/${factuur.id}`, factuur.number],

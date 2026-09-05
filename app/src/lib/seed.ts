@@ -3,9 +3,11 @@ import type {
   Payment, PurchaseOrder, PurchaseOrderLine, Reminder, ServiceContract, StockBike,
   StockBikeStatus, StockMovement, Supplier, Tag, WorkOrder, WorkOrderEvent,
   WorkOrderLine, WorkOrderStatus,
+  Absence, Availability, Shift, TimeEntry,
 } from './types'
 import { JOB_TEMPLATES } from './jobs'
 import { addWorkingDays, daysSince, laborCents, vatOf } from './format'
+import { addDays, dayKey, mondayOf } from './rooster'
 
 /**
  * Demodata voor fase 0 (sectie 13 + regel 14.8): Nederlandse namen, adressen in
@@ -516,8 +518,100 @@ export function buildSeed(): Database {
     })
   }
 
+  // -------------------------------------------------- fase 3: rooster en uren
+  // Het rooster hangt aan de week van vandaag: een demonstratie waarin de
+  // agenda leeg is of vorig jaar staat, overtuigt niemand.
+  const maandag = mondayOf(dayKey())
+  const vandaag = dayKey()
+
+  const shifts: Shift[] = []
+  const dienst = (
+    user_id: string, date: string, start: string, end: string, pauze = 30, note: string | null = null,
+  ) => {
+    shifts.push({
+      id: `dnst_${user_id}_${date}`, user_id, date, start, end,
+      break_minutes: pauze, note, created_at: daysAgo(14),
+    })
+  }
+
+  // Twee weken vooruit en één week terug, zodat er iets te zien is in beide
+  // richtingen van de weekknoppen.
+  for (const week of [-1, 0, 1] as const) {
+    const start = addDays(maandag, week * 7)
+    for (let i = 0; i < 6; i++) { // maandag t/m zaterdag; zondag is de winkel dicht
+      const dag = addDays(start, i)
+      if (i < 5) {
+        dienst('usr_monteur', dag, '08:30', '17:00')
+        dienst('usr_owner', dag, '09:00', '18:00', 45)
+      }
+      if (i === 1 || i === 3 || i === 5) dienst('usr_balie', dag, '09:00', '17:30')
+      if (i >= 2) dienst('usr_monteur2', dag, '10:00', '18:00')
+      if (i === 5) dienst('usr_balie2', dag, '09:30', '17:00', 30, 'Zaterdagdrukte')
+    }
+  }
+
+  const absences: Absence[] = [
+    {
+      id: 'afw_1', user_id: 'usr_monteur2',
+      from_date: addDays(maandag, 8), to_date: addDays(maandag, 12),
+      kind: 'vakantie', note: null, created_at: daysAgo(20),
+    },
+  ]
+
+  const availability: Availability[] = [
+    {
+      id: 'besch_1', user_id: 'usr_balie2', date: addDays(maandag, 12),
+      can_work: false, from_time: null, to_time: null, note: 'Tentamen',
+      created_at: daysAgo(3),
+    },
+    {
+      id: 'besch_2', user_id: 'usr_balie2', date: addDays(maandag, 13),
+      can_work: true, from_time: '12:00', to_time: '18:00', note: null,
+      created_at: daysAgo(3),
+    },
+    {
+      id: 'besch_3', user_id: 'usr_balie', date: addDays(maandag, 9),
+      can_work: true, from_time: null, to_time: null, note: null,
+      created_at: daysAgo(2),
+    },
+  ]
+
+  // Gewerkte uren: het plan van vorige week, met de afwijkingen die in een
+  // echte winkel voorkomen — een kwartier te laat, een uur overwerk, en één
+  // dienst die niemand heeft afgesloten.
+  const time_entries: TimeEntry[] = []
+  const stempel = (dag: string, hhmm: string) => {
+    const [y, m, d] = dag.split('-').map(Number)
+    const [h, min] = hhmm.split(':').map(Number)
+    return new Date(y, (m ?? 1) - 1, d ?? 1, h ?? 0, min ?? 0, 0, 0).toISOString()
+  }
+  const geklokt = (
+    user_id: string, dag: string, van: string, tot: string | null, pauze = 30,
+  ) => {
+    time_entries.push({
+      id: `uur_${user_id}_${dag}_${van.replace(':', '')}`, user_id, date: dag,
+      clock_in: stempel(dag, van), clock_out: tot ? stempel(dag, tot) : null,
+      break_minutes: pauze, source: 'nfc', note: null, edited_by: null, edited_at: null,
+    })
+  }
+
+  for (const s of shifts.filter((x) => x.date < vandaag && x.date >= addDays(maandag, -7))) {
+    // Zaterdag is het druk: dan loopt het uit. Verder een paar minuten speling.
+    const uitloop = s.date === addDays(mondayOf(s.date), 5) ? '+60' : '0'
+    const eind = uitloop === '+60'
+      ? `${String(Number(s.end.slice(0, 2)) + 1).padStart(2, '0')}:${s.end.slice(3)}`
+      : s.end
+    geklokt(s.user_id, s.date, s.start, eind, s.break_minutes)
+  }
+
+  // Vandaag: twee mensen zijn binnen en nog niet weg.
+  const tweeUurGeleden = new Date(Date.now() - 2 * 3_600_000)
+  const uur = `${String(tweeUurGeleden.getHours()).padStart(2, '0')}:${String(tweeUurGeleden.getMinutes()).padStart(2, '0')}`
+  geklokt('usr_monteur', vandaag, uur, null, 0)
+  geklokt('usr_owner', vandaag, uur, null, 0)
+
   return {
-    version: 2,
+    version: 3,
     settings: {
       shop_name: 'Fietswerk Groningen',
       address: 'Oosterstraat 42, 9711 NW Groningen',
@@ -535,15 +629,19 @@ export function buildSeed(): Database {
         device_name: null, energy: 12000, feed_steps: 60, auto_print_afhaalbon: true,
       },
     },
+    // Echte namen: een rooster met "Monteur" en "Balie" erin is geen rooster.
     users: [
-      { id: 'usr_owner', name: 'Eigenaar', role: 'owner', pin_code: '1111', ui_language: 'nl', active: true },
-      { id: 'usr_monteur', name: 'Monteur', role: 'monteur', pin_code: '2222', ui_language: 'nl', active: true },
-      { id: 'usr_balie', name: 'Balie', role: 'balie', pin_code: '3333', ui_language: 'nl', active: true },
+      { id: 'usr_owner', name: 'Harm Wijnstra', role: 'owner', pin_code: '1111', ui_language: 'nl', active: true },
+      { id: 'usr_monteur', name: 'Sanne Dijkstra', role: 'monteur', pin_code: '2222', ui_language: 'nl', active: true },
+      { id: 'usr_balie', name: 'Bram Postma', role: 'balie', pin_code: '3333', ui_language: 'nl', active: true },
+      { id: 'usr_monteur2', name: 'Lieke Veenstra', role: 'monteur', pin_code: '4444', ui_language: 'nl', active: true },
+      { id: 'usr_balie2', name: 'Douwe Bos', role: 'balie', pin_code: '5555', ui_language: 'nl', active: true },
     ],
     customers, bikes, work_orders, work_order_lines, work_order_events,
     tags, tag_scans: [], print_jobs: [],
     parts, stock_movements, suppliers, purchase_orders, po_lines,
     payments, notifications, invoices, outbox: [],
     stock_bikes, service_contracts, battery_logs, reminders,
+    shifts, absences, availability, time_entries,
   }
 }
