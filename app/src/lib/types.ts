@@ -139,6 +139,8 @@ export interface WorkOrder {
   internal_notes: string | null
   left_behind: string[] // slot, sleutels, tassen, kinderzitje
   key_numbers: string[]
+  /** Overgezet uit het papieren schrift: telt niet mee in omzet en boekhouding. */
+  imported_at: string | null
 }
 
 export type LineKind = 'arbeid' | 'onderdeel' | 'overig'

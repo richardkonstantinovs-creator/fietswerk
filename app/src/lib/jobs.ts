@@ -4,6 +4,11 @@ import type { BikeCategory } from './types'
  * Sectie 11 — normtijden. Dit zijn startwaarden [CONTROLEREN bij de eigenaar];
  * de bedoeling is dat hij ze zelf bijstelt. Nergens hardcoden buiten dit bestand.
  */
+/** De acht soorten fiets, in de volgorde waarin ze op het aannamescherm staan. */
+export const BIKE_CATEGORIES: BikeCategory[] = [
+  'stadsfiets', 'ebike', 'racefiets', 'mtb', 'bakfiets', 'kinderfiets', 'vouwfiets', 'overig',
+]
+
 export interface JobTemplate {
   key: string
   nl: string

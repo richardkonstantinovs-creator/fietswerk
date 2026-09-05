@@ -13,11 +13,13 @@
     "check": "tsc -b && node scripts/check-i18n.mjs && oxlint && vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "nanoid": "^5.1.16",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

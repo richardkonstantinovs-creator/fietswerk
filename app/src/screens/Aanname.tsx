@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as db from '../lib/db'
 import { useDbVersion } from '../lib/useDb'
-import { chipsFor, JOB_TEMPLATES } from '../lib/jobs'
+import { BIKE_CATEGORIES, chipsFor, JOB_TEMPLATES } from '../lib/jobs'
 import type { BikeCategory, Customer, Photo, WorkOrder } from '../lib/types'
 import { fileToPhoto } from '../lib/photos'
 import { formatTagCode, publicUrl, tagUrl } from '../lib/code'
@@ -23,9 +23,6 @@ import { Qr } from '../components/Qr'
 
 const TOTAL_STEPS = 6
 
-const CATEGORIES: BikeCategory[] = [
-  'stadsfiets', 'ebike', 'racefiets', 'mtb', 'bakfiets', 'kinderfiets', 'vouwfiets', 'overig',
-]
 const LEFT_BEHIND = ['slot', 'sleutels', 'tas', 'kinderzitje', 'lamp', 'accu'] as const
 const QUICK_LIMITS = [5000, 8000, 12000, 20000]
 const QUICK_DAYS = [0, 1, 2, 5]
@@ -276,7 +273,7 @@ function AannameForm({ onNew }: { onNew: () => void }) {
               </Field>
               <Field label={t('aanname.step2.category')}>
                 <div className="grid grid-cols-2 gap-3">
-                  {CATEGORIES.map((c) => (
+                  {BIKE_CATEGORIES.map((c) => (
                     <ChoiceButton
                       key={c} selected={newBike.category === c} label={t(`bike.category.${c}`)}
                       onClick={() => setNewBike({ ...newBike, category: c })}

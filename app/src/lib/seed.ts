@@ -234,6 +234,7 @@ export function buildSeed(): Database {
       photos: [], internal_notes: null,
       left_behind: rand() > 0.5 ? ['slot'] : [],
       key_numbers: bikeRow.key_numbers,
+      imported_at: null,
     }
 
     if (!closed) {
@@ -611,7 +612,7 @@ export function buildSeed(): Database {
   geklokt('usr_owner', vandaag, uur, null, 0)
 
   return {
-    version: 3,
+    version: 4,
     settings: {
       shop_name: 'Fietswerk Groningen',
       address: 'Oosterstraat 42, 9711 NW Groningen',

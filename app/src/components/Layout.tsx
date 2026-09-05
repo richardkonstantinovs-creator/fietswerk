@@ -202,6 +202,7 @@ const MEER = [
   { to: '/overzicht', key: 'nav.overzicht', icon: IconOverzicht },
   { to: '/bestellingen', key: 'bestellingen.title', icon: IconBestellingen },
   { to: '/rapporten', key: 'rapporten.title', icon: IconRapporten },
+  { to: '/schrift', key: 'nav.schrift', icon: IconSchrift },
 ]
 
 /**
@@ -368,6 +369,16 @@ function IconInstellingen() {
     <svg {...SVG} className="shrink-0 text-muted">
       <circle cx="12" cy="12" r="3.25" />
       <path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3" />
+    </svg>
+  )
+}
+
+/** Een opengeslagen schrift — het papier waar de klantgeschiedenis in staat. */
+function IconSchrift() {
+  return (
+    <svg {...SVG}>
+      <path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2z" />
+      <path d="M12 6.5v13" />
     </svg>
   )
 }

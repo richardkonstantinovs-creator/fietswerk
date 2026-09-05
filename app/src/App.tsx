@@ -21,6 +21,7 @@ import Occasions from './screens/Occasions'
 import Occasion from './screens/Occasion'
 import Inkoop from './screens/Inkoop'
 import Rapporten from './screens/Rapporten'
+import Schrift from './screens/Schrift'
 import Rooster from './screens/Rooster'
 import Uren from './screens/Uren'
 import Beschikbaarheid from './screens/Beschikbaarheid'
@@ -88,6 +89,7 @@ export default function App() {
                 <Route path="/occasions/inkoop" element={<Inkoop />} />
                 <Route path="/occasion/:id" element={<Occasion />} />
                 <Route path="/rapporten" element={<Rapporten />} />
+                <Route path="/schrift" element={<Schrift />} />
                 <Route path="/rooster" element={<Rooster />} />
                 <Route path="/uren" element={<Uren />} />
                 <Route path="/beschikbaarheid" element={<Beschikbaarheid />} />

@@ -13,6 +13,17 @@ import { Button, Card, Confirm, SectionTitle } from '../components/ui'
  * Sectie 7.7 — geen grafieken, maar zes grote getallen met gewone woorden
  * eronder. Grafieken pas als de eigenaar er zelf om vraagt.
  */
+/** De opslag als bestand, zodat de winkel een kopie op de eigen computer heeft. */
+function downloadBackup() {
+  const blob = new Blob([db.exportDatabaseJson()], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `fietswerk-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function Overzicht() {
   const t = useT()
   const navigate = useNavigate()
@@ -21,8 +32,10 @@ export default function Overzicht() {
 
   const d = db.data()
   const weekAgo = Date.now() - 7 * 86_400_000
+  // Geld uit het schrift is al geboekt; het hoort niet nog eens in de weekomzet.
   const paidThisWeek = d.work_orders.filter(
-    (w) => w.picked_up_at != null && new Date(w.picked_up_at).getTime() >= weekAgo,
+    (w) => w.imported_at == null
+      && w.picked_up_at != null && new Date(w.picked_up_at).getTime() >= weekAgo,
   )
 
   let labor = 0
@@ -140,6 +153,10 @@ export default function Overzicht() {
       <div className="mt-3">
         <Button full onClick={() => navigate('/rooster')}>{t('overzicht.to_rooster')}</Button>
       </div>
+
+      <SectionTitle>{t('overzicht.backup')}</SectionTitle>
+      <p className="mb-3">{t('overzicht.backup_explain')}</p>
+      <Button full onClick={downloadBackup}>{t('overzicht.backup_save')}</Button>
 
       <SectionTitle>{t('overzicht.reset')}</SectionTitle>
       <Button variant="danger" full onClick={() => setResetting(true)}>{t('overzicht.reset')}</Button>

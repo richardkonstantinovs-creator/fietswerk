@@ -41,6 +41,11 @@ describe('schermen renderen', () => {
     expect(render('/rapporten')).toContain('Dit deel is voor de eigenaar')
   })
 
+  it('laat alleen de eigenaar het schrift overzetten', () => {
+    db.login('usr_monteur', '2222')
+    expect(render('/schrift')).toContain('Dit deel is voor de eigenaar')
+  })
+
   it('laat de monteur het rooster lezen maar niet veranderen', () => {
     db.login('usr_monteur', '2222')
     const html = render('/rooster')
@@ -80,6 +85,7 @@ describe('schermen renderen', () => {
       [`/occasion/${occ.id}`, 'Echte marge'],
       ['/occasions/inkoop', 'stopheling'],
       ['/rapporten', 'Rapporten'],
+      ['/schrift', 'Het schrift overzetten'],
       ['/rooster', 'Wie werkt wanneer'],
       ['/uren', 'Overwerk'],
       ['/beschikbaarheid', 'Beschikbaarheid'],

@@ -20,8 +20,12 @@ import { addDays, dayKey, entryMinutes, mondayOf, shiftMinutes, weekDays } from 
  */
 
 const KEY = 'fietswerk.db.v1'
-/** Bij een nieuwe versie wordt de demo opnieuw gezaaid; fase 0 heeft geen migraties. */
-const DB_VERSION = 3
+/**
+ * Vanaf versie 4 gooien we bij een nieuwe versie niets meer weg: de winkel
+ * heeft echte klanten in de opslag staan. Een onbekende versie wordt wel
+ * opnieuw gezaaid — dan is het een oudere demo van voor de migraties.
+ */
+const DB_VERSION = 4
 const listeners = new Set<() => void>()
 
 let db: Database = load()
@@ -33,6 +37,11 @@ function load(): Database {
     if (raw) {
       const parsed = JSON.parse(raw) as Database
       if (parsed && parsed.version === DB_VERSION) return parsed
+      const migrated = migrate(parsed)
+      if (migrated) {
+        try { localStorage.setItem(KEY, JSON.stringify(migrated)) } catch { /* privémodus */ }
+        return migrated
+      }
     }
   } catch {
     // Kapotte opslag mag de demo niet blokkeren: opnieuw zaaien.
@@ -40,6 +49,41 @@ function load(): Database {
   const seeded = buildSeed()
   try { localStorage.setItem(KEY, JSON.stringify(seeded)) } catch { /* privémodus */ }
   return seeded
+}
+
+/**
+ * Oude opslag bijwerken in plaats van weggooien. Elke stap zet één versie
+ * hoger, zodat een winkel die lang niet heeft ververst er ook doorheen komt.
+ * Onbekend of te oud: null, dan zaait load() opnieuw.
+ */
+function migrate(parsed: Database | null): Database | null {
+  if (!parsed || typeof parsed.version !== 'number') return null
+  const d = parsed as Database & Record<string, unknown>
+  if (d.version === 3) {
+    // Fase 3 kende het schrift nog niet; bestaand werk komt uit de werkplaats.
+    for (const wo of d.work_orders ?? []) wo.imported_at = wo.imported_at ?? null
+    d.version = 4
+  }
+  return d.version === DB_VERSION ? d : null
+}
+
+/** Alles wat in de opslag staat, als tekst — de eigenaar bewaart dat zelf. */
+export function exportDatabaseJson(): string {
+  return JSON.stringify(db, null, 2)
+}
+
+/** Een eerder bewaarde backup terugzetten. Geeft false bij onleesbare tekst. */
+export function importDatabaseJson(text: string): boolean {
+  try {
+    const parsed = JSON.parse(text) as Database
+    const next = parsed.version === DB_VERSION ? parsed : migrate(parsed)
+    if (!next || !Array.isArray(next.customers) || !Array.isArray(next.work_orders)) return false
+    db = next
+    persist()
+    return true
+  } catch {
+    return false
+  }
 }
 
 function persist() {
@@ -339,6 +383,7 @@ export function createWorkOrder(input: NewWorkOrderInput): WorkOrder {
     total_ex_vat_cents: 0, total_vat_cents: 0, total_incl_vat_cents: 0,
     photos: input.photos ?? [], internal_notes: null,
     left_behind: input.left_behind ?? [], key_numbers: input.key_numbers ?? [],
+    imported_at: null,
   }
   db.work_orders.push(wo)
 
@@ -533,6 +578,74 @@ export function logScan(code: string, action: string, woid: string | null, devic
   }
   db.tag_scans.push(scan)
   persist()
+}
+
+// ================================================ fase 3: het schrift overzetten
+
+export interface ImportedWorkOrderInput {
+  customer_id: string
+  bike_id: string
+  complaint: string
+  /** De datum die in het schrift staat, als ISO-tijdstip. */
+  datum: string
+  lines: Array<{ description: string; price_cents: number }>
+  paid_cents: number | null
+  method: PaymentMethod | null
+  notitie: string | null
+}
+
+/**
+ * Een klus uit het papieren schrift terugzetten. Bewust géén createWorkOrder:
+ * een reparatie van vorig jaar krijgt geen bierkaartje aan de fiets en de
+ * bonprinter moet niet tweehonderd bonnen uitspugen. Er komt ook geen factuur
+ * bij — dat geld staat allang in de boekhouding, en zonder factuurregel blijft
+ * exportInvoicesCsv vanzelf schoon.
+ */
+export function importWorkOrder(input: ImportedWorkOrderInput): WorkOrder {
+  const vat = db.settings.vat_rate
+  const wo: WorkOrder = {
+    id: id('wo'),
+    number: nextWorkOrderNumber(db.work_orders.map((w) => w.number)),
+    bike_id: input.bike_id, customer_id: input.customer_id,
+    status: 'opgehaald', complaint: input.complaint, diagnosis: null,
+    approved_limit_cents: null, quote_cents: null, quote_sent_at: null,
+    approved_at: null, approved_by_channel: null,
+    mechanic_id: null, rack_location: null,
+    tag_code: null, public_token: newPublicToken(),
+    priority: 'normaal',
+    intake_at: input.datum, promised_at: null,
+    // ready_at blijft leeg: anders vervuilt het schrift de gemiddelde doorlooptijd.
+    ready_at: null, picked_up_at: input.datum,
+    estimated_minutes: null, actual_minutes: null,
+    total_ex_vat_cents: 0, total_vat_cents: 0, total_incl_vat_cents: 0,
+    photos: [], internal_notes: input.notitie,
+    left_behind: [], key_numbers: [],
+    imported_at: now(),
+  }
+  db.work_orders.push(wo)
+
+  for (const line of input.lines) {
+    db.work_order_lines.push({
+      id: id('wol'), work_order_id: wo.id, kind: 'overig',
+      description: line.description, part_id: null, qty: 1,
+      unit_price_ex_vat_cents: line.price_cents, vat_rate: vat, discount_pct: 0,
+      line_total_ex_vat_cents: line.price_cents, minutes: null,
+    })
+  }
+  recalcTotals(wo.id)
+
+  if (input.paid_cents != null && input.method != null) {
+    db.payments.push({
+      id: id('pay'), work_order_id: wo.id, stock_bike_id: null,
+      method: input.method, amount_cents: input.paid_cents, at: input.datum,
+      reference: null, user_id: currentUser()?.id ?? null,
+    })
+  }
+
+  logEvent(wo.id, 'created', { number: wo.number, uit_schrift: true })
+  track('work_orders', 'insert', { id: wo.id, number: wo.number, uit_schrift: true })
+  persist()
+  return wo
 }
 
 // ============================================================ fase 1: voorraad
